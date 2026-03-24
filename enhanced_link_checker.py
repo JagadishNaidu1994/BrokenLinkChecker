@@ -819,6 +819,34 @@ class EnhancedReportGenerator:
             <p><strong>Total Broken Links:</strong> {len(broken_links)}</p>
             <p><strong>Categories Found:</strong> {len(by_category)}</p>
         </div>
+
+        <div class="summary">
+            <h2>📂 Category Breakdown</h2>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead>
+                    <tr style="background: #6B46C1; color: white;">
+                        <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Category</th>
+                        <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 150px;">Broken Links</th>
+                    </tr>
+                </thead>
+                <tbody>
+"""
+
+        # Add category summary rows
+        for category in sorted(by_category.keys()):
+            count = len(by_category[category])
+            display_cat = CategoryExtractor.get_display_category(category)
+            html_content += f"""
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 10px; border: 1px solid #ddd;">{display_cat}</td>
+                        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: 600; color: #dc3545;">{count}</td>
+                    </tr>
+"""
+
+        html_content += """
+                </tbody>
+            </table>
+        </div>
 """
 
         # Add each category
