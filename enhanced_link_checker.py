@@ -940,7 +940,13 @@ class GitHubPagesUploader:
 
             # Clone or update repo
             repo_dir = Path(__file__).parent / '.github_pages_repo'
-            repo_url = f"https://github.com/{self.username}/{self.repo_name}.git"
+
+            # Use GH_PAT token if available (for GitHub Actions)
+            github_token = os.getenv('GITHUB_TOKEN')
+            if github_token:
+                repo_url = f"https://x-access-token:{github_token}@github.com/{self.username}/{self.repo_name}.git"
+            else:
+                repo_url = f"https://github.com/{self.username}/{self.repo_name}.git"
 
             if repo_dir.exists():
                 self.logger.info("Updating existing repository...")
