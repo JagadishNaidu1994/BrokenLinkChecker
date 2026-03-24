@@ -818,11 +818,8 @@ class EnhancedReportGenerator:
             <h2>📊 Summary</h2>
             <p><strong>Total Broken Links:</strong> {len(broken_links)}</p>
             <p><strong>Categories Found:</strong> {len(by_category)}</p>
-        </div>
 
-        <div class="summary">
-            <h2>📂 Category Breakdown</h2>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
                 <thead>
                     <tr style="background: #6B46C1; color: white;">
                         <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Category</th>
