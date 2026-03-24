@@ -1,9 +1,9 @@
 name: Broken Links Checker
 
 on:
-  # Schedule: Run every day at 9 AM UTC (adjust timezone as needed)
+  # Schedule: Run every Monday at 9 AM IST (3:30 AM UTC)
   schedule:
-    - cron: '0 9 * * *'  # Daily at 9 AM UTC
+    - cron: '30 3 * * 1'  # Every Monday at 9 AM IST (3:30 AM UTC)
 
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
