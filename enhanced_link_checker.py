@@ -816,17 +816,20 @@ class EnhancedReportGenerator:
 
         <div class="summary">
             <h2>📊 Summary</h2>
-            <p><strong>Total Broken Links:</strong> {len(broken_links)}</p>
-            <p><strong>Categories Found:</strong> {len(by_category)}</p>
-
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <thead>
-                    <tr style="background: #6B46C1; color: white;">
-                        <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Category</th>
-                        <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 150px;">Broken Links</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div style="display: flex; gap: 30px; align-items: flex-start;">
+                <div style="flex: 0 0 auto;">
+                    <p><strong>Total Broken Links:</strong> {len(broken_links)}</p>
+                    <p><strong>Categories Found:</strong> {len(by_category)}</p>
+                </div>
+                <div style="flex: 1;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #6B46C1; color: white;">
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Category</th>
+                                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 150px;">Broken Links</th>
+                            </tr>
+                        </thead>
+                        <tbody>
 """
 
         # Add category summary rows
@@ -834,15 +837,17 @@ class EnhancedReportGenerator:
             count = len(by_category[category])
             display_cat = CategoryExtractor.get_display_category(category)
             html_content += f"""
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 10px; border: 1px solid #ddd;">{display_cat}</td>
-                        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: 600; color: #dc3545;">{count}</td>
-                    </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px; border: 1px solid #ddd;">{display_cat}</td>
+                                <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: 600; color: #dc3545;">{count}</td>
+                            </tr>
 """
 
         html_content += """
-                </tbody>
-            </table>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 """
 
