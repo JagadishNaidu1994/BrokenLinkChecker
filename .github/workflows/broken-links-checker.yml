@@ -69,7 +69,7 @@ jobs:
         # GitHub Pages Settings
         ENABLE_GITHUB_UPLOAD=true
         GITHUB_REPO_NAME=broken-links-reports
-        GITHUB_USERNAME=${{ secrets.GITHUB_USERNAME }}
+        GITHUB_USERNAME=${{ secrets.PAGES_USERNAME }}
 
         # Alert Thresholds
         MIN_BROKEN_LINKS_FOR_ALERT=1
