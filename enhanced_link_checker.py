@@ -512,6 +512,16 @@ class WebCrawler:
                 absolute_url = absolute_url.split('#')[0]
 
                 if absolute_url:
+                    # Skip excluded patterns
+                    excluded = False
+                    for pattern in self.config.exclude_patterns:
+                        if re.search(pattern, absolute_url):
+                            excluded = True
+                            break
+
+                    if excluded:
+                        continue
+
                     # Get the link text
                     link_text = tag.get_text(strip=True)
 
