@@ -1266,7 +1266,14 @@ class EnhancedBrokenLinkMonitor:
             links_to_check = []
             for source_url, links_dict in all_links.items():
                 for link, context in links_dict.items():
-                    if link not in self.link_checker.checked_urls:
+                    # Skip excluded patterns
+                    excluded = False
+                    for pattern in self.config.exclude_patterns:
+                        if re.search(pattern, link):
+                            excluded = True
+                            break
+
+                    if not excluded and link not in self.link_checker.checked_urls:
                         links_to_check.append((link, source_url, context))
 
                     if self.config.max_links > 0 and len(links_to_check) >= self.config.max_links:
