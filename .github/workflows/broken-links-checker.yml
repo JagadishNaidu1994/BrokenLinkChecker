@@ -60,7 +60,7 @@ jobs:
 
         # Notification Settings
         ENABLE_DESKTOP_NOTIFICATIONS=false
-        ENABLE_SLACK_NOTIFICATIONS=true
+        ENABLE_SLACK_NOTIFICATIONS=false
         NOTIFICATION_SOUND=Glass
 
         # Slack Settings
