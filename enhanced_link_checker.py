@@ -70,7 +70,7 @@ class Config:
             self._load_env_file(env_file)
 
         self.docs_urls = [url.strip() for url in os.getenv('DOCS_URLS', '').split(',') if url.strip()]
-        self.max_depth = int(os.getenv('MAX_CRAWL_DEPTH', '3'))
+        self.max_depth = int(os.getenv('MAX_CRAWL_DEPTH', '3'))  # NOTE: Not enforced for internal domain links
         self.max_pages = int(os.getenv('MAX_PAGES_PER_SITE', '100'))
         self.max_links = int(os.getenv('MAX_LINKS_TO_CHECK', '0'))
         self.follow_external = os.getenv('FOLLOW_EXTERNAL_LINKS', 'false').lower() == 'true'

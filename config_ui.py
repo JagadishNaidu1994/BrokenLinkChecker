@@ -229,6 +229,63 @@ def git_commit_push():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/run-checker', methods=['POST'])
+def run_checker():
+    """Run the link checker."""
+    try:
+        script_path = Path(__file__).parent / 'enhanced_link_checker.py'
+
+        # Run in background
+        process = subprocess.Popen(
+            ['python3', str(script_path)],
+            cwd=Path(__file__).parent,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Link checker started successfully!',
+            'pid': process.pid
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/checker-status', methods=['GET'])
+def checker_status():
+    """Check if the link checker is running."""
+    try:
+        # Check if enhanced_link_checker.py process is running
+        result = subprocess.run(
+            ['pgrep', '-f', 'enhanced_link_checker.py'],
+            capture_output=True,
+            text=True
+        )
+
+        is_running = result.returncode == 0
+
+        # Get latest report info
+        reports_dir = Path(__file__).parent / 'reports'
+        latest_report = None
+        if reports_dir.exists():
+            html_files = list(reports_dir.glob('broken_links_report_*.html'))
+            if html_files:
+                latest = max(html_files, key=lambda p: p.stat().st_mtime)
+                latest_report = {
+                    'name': latest.name,
+                    'path': str(latest),
+                    'timestamp': latest.stat().st_mtime
+                }
+
+        return jsonify({
+            'is_running': is_running,
+            'latest_report': latest_report
+        })
+    except Exception as e:
+        return jsonify({'is_running': False, 'error': str(e)})
+
+
 if __name__ == '__main__':
     print("🚀 Starting Broken Link Checker Configuration UI")
     print("📝 Access the UI at: http://localhost:5000")

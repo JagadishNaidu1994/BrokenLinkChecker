@@ -333,13 +333,49 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .btn-run {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-run:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-run:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-badge.running {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .status-badge.idle {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🔗 Broken Link Checker</h1>
-            <p>Configuration Management Panel</p>
+            <p>Configuration Management Panel <span class="status-badge idle" id="statusBadge">Idle</span></p>
         </div>
 
         <div class="content">
@@ -358,11 +394,14 @@
             <!-- Crawl Settings -->
             <div class="section">
                 <h2 class="section-title">⚙️ Crawl Settings</h2>
+                <p style="margin-bottom: 15px; color: #6b7280;">
+                    ℹ️ <strong>Note:</strong> Crawl depth is unlimited for internal Sonatype domain links to ensure complete coverage.
+                </p>
                 <div class="grid-2">
                     <div class="form-group">
                         <label for="maxDepth">Max Crawl Depth</label>
-                        <input type="number" id="maxDepth" min="1" max="10">
-                        <small>Maximum depth to crawl (1-10)</small>
+                        <input type="number" id="maxDepth" min="1" max="10" disabled>
+                        <small>Unlimited for internal links (setting ignored)</small>
                     </div>
                     <div class="form-group">
                         <label for="maxPages">Max Pages Per Site</label>
@@ -474,6 +513,9 @@
 
             <!-- Actions -->
             <div class="actions">
+                <button class="btn btn-run" id="runBtn" onclick="runChecker()">
+                    ▶️ Run Link Checker
+                </button>
                 <button class="btn btn-primary" onclick="saveConfig()">
                     💾 Save Configuration
                 </button>
@@ -492,7 +534,12 @@
         let excludePatterns = [];
 
         // Load configuration on page load
-        window.addEventListener('DOMContentLoaded', loadConfig);
+        window.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            checkStatus();
+            // Poll status every 5 seconds
+            setInterval(checkStatus, 5000);
+        });
 
         async function loadConfig() {
             try {
@@ -646,6 +693,57 @@
 
         function hideLoading() {
             document.getElementById('loading').classList.remove('active');
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/checker-status');
+                const status = await response.json();
+
+                const badge = document.getElementById('statusBadge');
+                const runBtn = document.getElementById('runBtn');
+
+                if (status.is_running) {
+                    badge.textContent = 'Running...';
+                    badge.className = 'status-badge running';
+                    runBtn.disabled = true;
+                    runBtn.textContent = '⏳ Running...';
+                } else {
+                    badge.textContent = 'Idle';
+                    badge.className = 'status-badge idle';
+                    runBtn.disabled = false;
+                    runBtn.textContent = '▶️ Run Link Checker';
+                }
+            } catch (error) {
+                console.error('Failed to check status:', error);
+            }
+        }
+
+        async function runChecker() {
+            if (!confirm('This will start the link checker. It may take 20-30 minutes to complete. Continue?')) {
+                return;
+            }
+
+            try {
+                showLoading();
+                const response = await fetch('/api/run-checker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+                hideLoading();
+
+                if (result.success) {
+                    showStatus('Link checker started successfully! Check progress in terminal or wait for completion notification.', 'success');
+                    checkStatus(); // Update status immediately
+                } else {
+                    showStatus('Failed to start link checker: ' + result.error, 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showStatus('Failed to start link checker: ' + error.message, 'error');
+            }
         }
     </script>
 </body>
