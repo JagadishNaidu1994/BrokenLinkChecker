@@ -89,6 +89,7 @@ class Config:
         self.enable_desktop = os.getenv('ENABLE_DESKTOP_NOTIFICATIONS', 'true').lower() == 'true'
         self.enable_slack = os.getenv('ENABLE_SLACK_NOTIFICATIONS', 'false').lower() == 'true'
         self.slack_webhook = os.getenv('SLACK_WEBHOOK_URL', '')
+        self.slack_channel = os.getenv('SLACK_CHANNEL', '')
         self.notification_sound = os.getenv('NOTIFICATION_SOUND', 'Glass')
 
         self.min_broken_links_alert = int(os.getenv('MIN_BROKEN_LINKS_FOR_ALERT', '1'))
@@ -1157,6 +1158,7 @@ class SlackNotifier:
 
             # Create Slack message
             message = {
+                "channel": self.config.slack_channel if self.config.slack_channel else None,
                 "blocks": [
                     {
                         "type": "header",

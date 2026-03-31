@@ -65,6 +65,7 @@ jobs:
 
         # Slack Settings
         SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_CHANNEL=#tech-writers-india
 
         # GitHub Pages Settings
         ENABLE_GITHUB_UPLOAD=true
