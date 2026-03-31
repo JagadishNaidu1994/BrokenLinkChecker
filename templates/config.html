@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broken Link Checker - Configuration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="number"]:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: monospace;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #6b7280;
+            font-size: 0.875em;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 26px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background-color: #667eea;
+        }
+
+        .toggle input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .toggle-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .exclude-patterns {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .pattern-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .pattern-item input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .pattern-item button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .pattern-item button:hover {
+            background: #dc2626;
+        }
+
+        .add-pattern-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        .add-pattern-btn:hover {
+            background: #5568d3;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .status-message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 Broken Link Checker</h1>
+            <p>Configuration Management Panel</p>
+        </div>
+
+        <div class="content">
+            <div class="status-message" id="statusMessage"></div>
+
+            <!-- Documentation URLs -->
+            <div class="section">
+                <h2 class="section-title">📄 Documentation URLs</h2>
+                <div class="form-group">
+                    <label for="docsUrls">URLs to Check (comma-separated)</label>
+                    <textarea id="docsUrls" placeholder="https://help.sonatype.com/index.html?lang=en"></textarea>
+                    <small>Enter one or more documentation URLs to check, separated by commas</small>
+                </div>
+            </div>
+
+            <!-- Crawl Settings -->
+            <div class="section">
+                <h2 class="section-title">⚙️ Crawl Settings</h2>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="maxDepth">Max Crawl Depth</label>
+                        <input type="number" id="maxDepth" min="1" max="10">
+                        <small>Maximum depth to crawl (1-10)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxPages">Max Pages Per Site</label>
+                        <input type="number" id="maxPages" min="0">
+                        <small>0 = unlimited</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxLinks">Max Links to Check</label>
+                        <input type="number" id="maxLinks" min="0">
+                        <small>0 = unlimited</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="parallelWorkers">Parallel Workers</label>
+                        <input type="number" id="parallelWorkers" min="1" max="200">
+                        <small>Number of concurrent checks (1-200)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="timeout">Request Timeout (seconds)</label>
+                        <input type="number" id="timeout" min="5" max="60">
+                        <small>Timeout for each link check</small>
+                    </div>
+                </div>
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="followExternal">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Follow External Links</span>
+                </div>
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="checkExternal">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Check External Links</span>
+                </div>
+            </div>
+
+            <!-- Exclusion Patterns -->
+            <div class="section">
+                <h2 class="section-title">🚫 Exclusion Patterns</h2>
+                <p style="margin-bottom: 15px; color: #6b7280;">
+                    Add regex patterns to exclude specific URLs from checking
+                </p>
+                <div class="exclude-patterns" id="excludePatterns"></div>
+                <button class="add-pattern-btn" onclick="addPattern()">+ Add Pattern</button>
+            </div>
+
+            <!-- Notifications -->
+            <div class="section">
+                <h2 class="section-title">🔔 Notifications</h2>
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="enableDesktop">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Desktop Notifications</span>
+                </div>
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="enableSlack">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Slack Notifications</span>
+                </div>
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="notifyOnCompletion">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Notify on Completion (even with no broken links)</span>
+                </div>
+                <div class="form-group">
+                    <label for="slackWebhook">Slack Webhook URL</label>
+                    <input type="text" id="slackWebhook" placeholder="https://hooks.slack.com/services/...">
+                </div>
+                <div class="form-group">
+                    <label for="slackChannel">Slack Channel</label>
+                    <input type="text" id="slackChannel" placeholder="#tech-writers-india">
+                </div>
+                <div class="form-group">
+                    <label for="minAlerts">Minimum Broken Links for Alert</label>
+                    <input type="number" id="minAlerts" min="0">
+                    <small>Alert only if this many broken links are found</small>
+                </div>
+            </div>
+
+            <!-- GitHub Pages -->
+            <div class="section">
+                <h2 class="section-title">📦 GitHub Pages</h2>
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="enableGitHub">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Auto-upload Reports to GitHub Pages</span>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="githubRepo">Repository Name</label>
+                        <input type="text" id="githubRepo" placeholder="broken-links-reports">
+                    </div>
+                    <div class="form-group">
+                        <label for="githubUsername">GitHub Username</label>
+                        <input type="text" id="githubUsername" placeholder="your-username">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions">
+                <button class="btn btn-primary" onclick="saveConfig()">
+                    💾 Save Configuration
+                </button>
+                <button class="btn btn-secondary" onclick="saveAndPush()">
+                    🚀 Save & Push to Git
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        let excludePatterns = [];
+
+        // Load configuration on page load
+        window.addEventListener('DOMContentLoaded', loadConfig);
+
+        async function loadConfig() {
+            try {
+                showLoading();
+                const response = await fetch('/api/config');
+                const config = await response.json();
+
+                // Populate form fields
+                document.getElementById('docsUrls').value = config.docs_urls;
+                document.getElementById('maxDepth').value = config.max_crawl_depth;
+                document.getElementById('maxPages').value = config.max_pages_per_site;
+                document.getElementById('maxLinks').value = config.max_links_to_check;
+                document.getElementById('parallelWorkers').value = config.parallel_workers;
+                document.getElementById('timeout').value = config.request_timeout;
+                document.getElementById('followExternal').checked = config.follow_external_links;
+                document.getElementById('checkExternal').checked = config.check_external_links;
+                document.getElementById('enableDesktop').checked = config.enable_desktop_notifications;
+                document.getElementById('enableSlack').checked = config.enable_slack_notifications;
+                document.getElementById('slackWebhook').value = config.slack_webhook_url;
+                document.getElementById('slackChannel').value = config.slack_channel;
+                document.getElementById('minAlerts').value = config.min_broken_links_alert;
+                document.getElementById('notifyOnCompletion').checked = config.notify_on_completion;
+                document.getElementById('enableGitHub').checked = config.enable_github_upload;
+                document.getElementById('githubRepo').value = config.github_repo_name;
+                document.getElementById('githubUsername').value = config.github_username;
+
+                // Load exclusion patterns
+                excludePatterns = config.exclude_patterns || [];
+                renderPatterns();
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showStatus('Failed to load configuration: ' + error.message, 'error');
+            }
+        }
+
+        function renderPatterns() {
+            const container = document.getElementById('excludePatterns');
+            container.innerHTML = '';
+
+            excludePatterns.forEach((pattern, index) => {
+                const div = document.createElement('div');
+                div.className = 'pattern-item';
+                div.innerHTML = `
+                    <input type="text" value="${pattern}" onchange="updatePattern(${index}, this.value)">
+                    <button onclick="removePattern(${index})">Remove</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addPattern() {
+            excludePatterns.push('');
+            renderPatterns();
+        }
+
+        function removePattern(index) {
+            excludePatterns.splice(index, 1);
+            renderPatterns();
+        }
+
+        function updatePattern(index, value) {
+            excludePatterns[index] = value;
+        }
+
+        async function saveConfig() {
+            try {
+                showLoading();
+
+                const config = {
+                    docs_urls: document.getElementById('docsUrls').value,
+                    max_crawl_depth: parseInt(document.getElementById('maxDepth').value),
+                    max_pages_per_site: parseInt(document.getElementById('maxPages').value),
+                    max_links_to_check: parseInt(document.getElementById('maxLinks').value),
+                    parallel_workers: parseInt(document.getElementById('parallelWorkers').value),
+                    request_timeout: parseInt(document.getElementById('timeout').value),
+                    follow_external_links: document.getElementById('followExternal').checked,
+                    check_external_links: document.getElementById('checkExternal').checked,
+                    exclude_patterns: excludePatterns.filter(p => p.trim()),
+                    enable_desktop_notifications: document.getElementById('enableDesktop').checked,
+                    enable_slack_notifications: document.getElementById('enableSlack').checked,
+                    slack_webhook_url: document.getElementById('slackWebhook').value,
+                    slack_channel: document.getElementById('slackChannel').value,
+                    min_broken_links_alert: parseInt(document.getElementById('minAlerts').value),
+                    notify_on_completion: document.getElementById('notifyOnCompletion').checked,
+                    enable_github_upload: document.getElementById('enableGitHub').checked,
+                    github_repo_name: document.getElementById('githubRepo').value,
+                    github_username: document.getElementById('githubUsername').value,
+                };
+
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+                hideLoading();
+
+                if (result.success) {
+                    showStatus('Configuration saved successfully!', 'success');
+                } else {
+                    showStatus('Failed to save configuration: ' + result.error, 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showStatus('Failed to save configuration: ' + error.message, 'error');
+            }
+        }
+
+        async function saveAndPush() {
+            await saveConfig();
+
+            try {
+                showLoading();
+                const response = await fetch('/api/git/commit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: 'Update configuration via UI' })
+                });
+
+                const result = await response.json();
+                hideLoading();
+
+                if (result.success) {
+                    showStatus('Configuration saved and pushed to git!', 'success');
+                } else {
+                    showStatus('Saved locally but failed to push to git: ' + result.error, 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showStatus('Saved locally but failed to push to git: ' + error.message, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
