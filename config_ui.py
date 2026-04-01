@@ -288,6 +288,80 @@ def checker_status():
         return jsonify({'is_running': False, 'error': str(e)})
 
 
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Get statistics from latest scan."""
+    try:
+        import re
+        from datetime import datetime
+
+        log_file = Path(__file__).parent / 'link_checker_enhanced.log'
+        reports_dir = Path(__file__).parent / 'reports'
+
+        stats = {
+            'pages_crawled': 0,
+            'total_links_scanned': 0,
+            'broken_links': 0,
+            'ignored_links': 0,
+            'unique_links': 0,
+            'scan_duration': '',
+            'last_scan_time': '',
+            'categories': {}
+        }
+
+        # Parse log file for latest scan
+        if log_file.exists():
+            with open(log_file, 'r') as f:
+                log_content = f.read()
+
+            # Find latest scan start
+            start_matches = re.findall(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).*Starting crawl', log_content)
+            if start_matches:
+                stats['last_scan_time'] = start_matches[-1]
+
+            # Pages crawled
+            crawl_match = re.search(r'Crawl complete: (\d+) pages visited', log_content)
+            if crawl_match:
+                stats['pages_crawled'] = int(crawl_match.group(1))
+
+            # Links checked
+            links_match = re.search(r'Checked (\d+)/(\d+) links', log_content)
+            if links_match:
+                stats['total_links_scanned'] = int(links_match.group(2))
+
+            # Broken links by category
+            category_matches = re.findall(r'(.*?):\s*(\d+)\s*broken links', log_content)
+            for cat_match in category_matches:
+                cat_name = cat_match[0].strip().replace('💻', '').replace('🔍', '').replace('📦', '').replace('🔗', '').strip()
+                cat_count = int(cat_match[1])
+                stats['categories'][cat_name] = cat_count
+                stats['broken_links'] += cat_count
+
+        # Get CSV report for more details
+        if reports_dir.exists():
+            csv_files = list(reports_dir.glob('broken_links_categorized_*.csv'))
+            if csv_files:
+                latest_csv = max(csv_files, key=lambda p: p.stat().st_mtime)
+                import csv
+                with open(latest_csv, 'r') as f:
+                    reader = csv.reader(f)
+                    next(reader)  # skip header
+                    unique_broken = set()
+                    for row in reader:
+                        if len(row) >= 2:
+                            unique_broken.add(row[1])  # broken link URL
+                    stats['unique_links'] = len(unique_broken)
+
+        # Estimate ignored links (total found - checked)
+        config = load_env_config()
+        exclude_patterns = config.get('EXCLUDE_PATTERNS', '').split(',')
+        stats['ignored_patterns'] = len([p for p in exclude_patterns if p.strip()])
+
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     print("🚀 Starting Broken Link Checker Configuration UI")
     print("📝 Access the UI at: http://localhost:5000")
