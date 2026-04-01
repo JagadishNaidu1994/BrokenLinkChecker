@@ -53,7 +53,7 @@ jobs:
         FOLLOW_EXTERNAL_LINKS=false
         CHECK_EXTERNAL_LINKS=false
         REQUEST_TIMEOUT_SECONDS=10
-        PARALLEL_WORKERS=100
+        PARALLEL_WORKERS=200
 
         # Exclude Patterns (regex, comma-separated)
         EXCLUDE_PATTERNS=${{ secrets.EXCLUDE_PATTERNS }}
