@@ -27,6 +27,8 @@ def load_env_config() -> Dict[str, Any]:
                 line = line.strip()
                 if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
+                    # Remove inline comments
+                    value = value.split('#')[0].strip()
                     config[key] = value
 
     return config
