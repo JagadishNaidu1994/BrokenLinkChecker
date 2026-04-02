@@ -554,7 +554,11 @@ class WebCrawler:
             for tag in soup.find_all('a', href=True):
                 href = tag['href']
                 absolute_url = urljoin(base_url, href)
-                absolute_url = absolute_url.split('#')[0]
+
+                # Preserve anchors for 404-page.html to capture full broken reference
+                # Strip anchors for all other URLs (anchors don't affect link validity)
+                if '404-page.html' not in absolute_url:
+                    absolute_url = absolute_url.split('#')[0]
 
                 if absolute_url:
                     # Skip excluded patterns
