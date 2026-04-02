@@ -346,6 +346,18 @@ class EnhancedLinkChecker:
         if url in self.checked_urls:
             return self.checked_urls[url]
 
+        # URN links are invalid in HTML - return as broken immediately
+        if url.startswith('urn:'):
+            result = (0, 'Invalid URN link in HTML (not a valid web URL)')
+            self.checked_urls[url] = result
+            return result
+
+        # 404-page.html links are suspicious broken references
+        if '404-page.html' in url:
+            result = (404, 'Link to 404 error page (likely broken reference)')
+            self.checked_urls[url] = result
+            return result
+
         try:
             # Try HEAD first
             response = self.session.head(
@@ -423,6 +435,14 @@ class EnhancedLinkChecker:
 
         Returns True only for genuinely broken links.
         """
+        # URN schemes are invalid in HTML - report as broken
+        if url.startswith('urn:'):
+            return True
+
+        # Links to 404-page.html are suspicious - likely broken references
+        if '404-page.html' in url:
+            return True
+
         # Skip ideas.sonatype.com connection pool errors
         if 'ideas.sonatype.com' in url and 'HTTPSConnectionPool' in error:
             return False
@@ -433,10 +453,6 @@ class EnhancedLinkChecker:
 
         # Local URLs are not broken, just not accessible
         if 'localhost' in url.lower() or '127.0.0.1' in url or 'Local URL' in error:
-            return False
-
-        # URN schemes are not HTTP links
-        if url.startswith('urn:'):
             return False
 
         # GPG/PGP key files from repo.sonatype.com - working as intended (trigger downloads)
