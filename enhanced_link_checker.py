@@ -555,16 +555,24 @@ class WebCrawler:
                 href = tag['href']
                 absolute_url = urljoin(base_url, href)
 
-                # Preserve anchors for 404-page.html to capture full broken reference
-                # Strip anchors for all other URLs (anchors don't affect link validity)
-                if '404-page.html' not in absolute_url:
-                    absolute_url = absolute_url.split('#')[0]
+                # Check if this is a 404-page.html link BEFORE stripping anchor
+                is_404_page = '404-page.html' in absolute_url
 
-                if absolute_url:
+                # Strip anchors for all URLs by default
+                absolute_url_no_anchor = absolute_url.split('#')[0]
+
+                # For 404-page.html, keep the full URL with anchor
+                # For everything else, use URL without anchor
+                if is_404_page:
+                    final_url = absolute_url  # Keep anchor
+                else:
+                    final_url = absolute_url_no_anchor  # Strip anchor
+
+                if final_url:
                     # Skip excluded patterns
                     excluded = False
                     for pattern in self.config.exclude_patterns:
-                        if re.search(pattern, absolute_url):
+                        if re.search(pattern, final_url):
                             excluded = True
                             break
 
@@ -577,7 +585,7 @@ class WebCrawler:
                     # Try to get surrounding context
                     context = self._extract_context(tag, link_text)
 
-                    links_with_context[absolute_url] = context
+                    links_with_context[final_url] = context
 
         except Exception as e:
             self.logger.warning(f"Failed to parse HTML from {base_url}: {e}")
