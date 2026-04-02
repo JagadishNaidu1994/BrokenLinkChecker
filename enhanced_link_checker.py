@@ -492,8 +492,30 @@ class WebCrawler:
         self.logger = logger
         self.link_checker = link_checker
         self.visited_pages: Set[str] = set()
+        self.normalized_urls: Set[str] = set()  # Track normalized URLs to detect duplicates
         self.pages_to_crawl: List[Tuple[str, int]] = []
         self.all_links: Dict[str, Set[str]] = defaultdict(set)
+
+    def normalize_url(self, url: str) -> str:
+        """
+        Normalize URL to detect duplicates.
+
+        Converts various URL patterns to canonical form:
+        - /en/en/page.html -> /en/page.html
+        - /document/preview/page.html -> /en/page.html
+        - Removes query strings and fragments
+        """
+        # Remove query strings and fragments for normalization
+        base_url = url.split('?')[0].split('#')[0]
+
+        # Normalize duplicate /en/en/ pattern
+        base_url = base_url.replace('/en/en/', '/en/')
+
+        # Normalize /document/preview/ to /en/
+        base_url = base_url.replace('/document/preview/', '/en/')
+        base_url = base_url.replace('/document/index.html', '/en/index.html')
+
+        return base_url
 
     def should_crawl(self, url: str, base_domain: str) -> bool:
         """Check if URL should be crawled."""
@@ -509,6 +531,12 @@ class WebCrawler:
         if not self.config.follow_external:
             if parsed.netloc != base_domain:
                 return False
+
+        # Check if normalized URL already visited (duplicate detection)
+        normalized = self.normalize_url(url)
+        if normalized in self.normalized_urls:
+            self.logger.debug(f"Skipping duplicate: {url} (normalized: {normalized})")
+            return False
 
         return True
 
@@ -606,6 +634,10 @@ class WebCrawler:
                 continue
 
             # No depth limitation - crawl as deep as needed
+
+            # Track normalized URL to prevent duplicates
+            normalized = self.normalize_url(current_url)
+            self.normalized_urls.add(normalized)
 
             self.visited_pages.add(current_url)
             pages_crawled += 1
