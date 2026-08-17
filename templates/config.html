@@ -3,907 +3,1455 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Broken Link Checker - Configuration</title>
+    <title>Broken Link Checker</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-dark: #000000;
+            --bg-panel: #0a0a0a;
+            --bg-input: #111111;
+            --accent: #1a1a1a;
+            --accent-light: #3b82f6;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --text: #ffffff;
+            --text-dim: #6b7280;
+            --border: #1f1f1f;
+        }
+
+        [data-theme="light"] {
+            --bg-dark: #ffffff;
+            --bg-panel: #ffffff;
+            --bg-input: #ffffff;
+            --accent: #0f4c75;
+            --accent-light: #3282b8;
+            --success: #00b894;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --text: #1a1a2e;
+            --text-dim: #6b7785;
+            --border: #dfe4ea;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+            background: var(--bg-dark);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            font-size: 12px;
+            line-height: 1.4;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
+        .app {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            grid-template-rows: auto 1fr;
+            min-height: 100vh;
         }
 
+        /* Header */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
+            grid-column: 1 / -1;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .header h1 {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 40px;
-        }
-
-        .section {
-            margin-bottom: 40px;
-            padding-bottom: 30px;
-            border-bottom: 2px solid #e5e7eb;
-        }
-
-        .section:last-child {
-            border-bottom: none;
-        }
-
-        .section-title {
-            font-size: 1.5em;
-            color: #667eea;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #374151;
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="number"],
-        .form-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        .form-group input[type="text"]:focus,
-        .form-group input[type="number"]:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-            font-family: monospace;
-        }
-
-        .form-group small {
-            display: block;
-            margin-top: 5px;
-            color: #6b7280;
-            font-size: 0.875em;
-        }
-
-        .toggle-group {
+            color: var(--accent-light);
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 15px;
+            gap: 8px;
         }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .theme-toggle {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent-light);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+
+        .status-dot.running {
+            background: var(--success);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 16px;
+        }
+
+        .nav-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            padding: 0 4px;
+        }
+
+        .nav-btn {
+            width: 100%;
+            padding: 8px 10px;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: var(--accent);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-light);
+        }
+
+        .nav-btn .icon {
+            width: 14px;
+            opacity: 0.7;
+        }
+
+        /* Quick Stats */
+        .quick-stats {
+            background: var(--bg-input);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 12px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 11px;
+        }
+
+        .stat-row span:first-child { color: var(--text-dim); }
+        .stat-value.broken { color: var(--danger); font-weight: bold; }
+        .stat-value.pages { color: var(--success); }
+
+        /* Main Content */
+        .main {
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            color: var(--accent-light);
+        }
+
+        /* Form Elements */
+        .form-row {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .form-row label {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11px;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-light);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        /* Toggle Switch */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toggle-row:last-child { border-bottom: none; }
+
+        .toggle-label { font-size: 11px; }
 
         .toggle {
             position: relative;
-            width: 50px;
-            height: 26px;
+            width: 36px;
+            height: 18px;
         }
 
-        .toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
 
         .toggle-slider {
             position: absolute;
             cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: 0.4s;
-            border-radius: 26px;
+            inset: 0;
+            background: var(--border);
+            border-radius: 18px;
+            transition: 0.3s;
         }
 
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: 0.4s;
+            height: 12px;
+            width: 12px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--text);
             border-radius: 50%;
+            transition: 0.3s;
         }
 
-        .toggle input:checked + .toggle-slider {
-            background-color: #667eea;
-        }
+        .toggle input:checked + .toggle-slider { background: var(--accent-light); }
+        .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
 
-        .toggle input:checked + .toggle-slider:before {
-            transform: translateX(24px);
-        }
-
-        .toggle-label {
-            font-weight: 600;
-            color: #374151;
-        }
-
-        .exclude-patterns {
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 15px;
-            max-height: 300px;
+        /* Pattern List */
+        .pattern-list {
+            max-height: 200px;
             overflow-y: auto;
+            background: var(--bg-input);
+            border-radius: 4px;
+            padding: 4px;
         }
 
         .pattern-item {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: #f9fafb;
-            border-radius: 6px;
-            margin-bottom: 8px;
+            gap: 6px;
+            margin-bottom: 4px;
         }
 
-        .pattern-item input {
-            flex: 1;
-            padding: 8px;
-            border: 1px solid #e5e7eb;
-            border-radius: 4px;
-            font-family: monospace;
-        }
+        .pattern-item input { flex: 1; font-size: 10px; }
 
-        .pattern-item button {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
+        .btn-icon {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 4px 8px;
+            border-radius: 3px;
             cursor: pointer;
-            transition: background 0.3s;
+            font-size: 10px;
         }
 
-        .pattern-item button:hover {
-            background: #dc2626;
-        }
+        .btn-icon:hover { border-color: var(--danger); color: var(--danger); }
+        .btn-icon.add:hover { border-color: var(--success); color: var(--success); }
 
-        .add-pattern-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 10px;
-            transition: background 0.3s;
-        }
-
-        .add-pattern-btn:hover {
-            background: #5568d3;
-        }
-
+        /* Action Buttons */
         .actions {
             display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #e5e7eb;
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
         }
 
         .btn {
-            padding: 14px 30px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
+            border-radius: 4px;
             cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--accent-light);
             color: white;
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-        }
+        .btn-primary:hover { background: var(--accent); }
 
-        .btn-secondary {
-            background: #10b981;
+        .btn-success {
+            background: var(--success);
             color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #059669;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
-        }
-
-        .status-message {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .status-message.success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
-        }
-
-        .status-message.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
-        }
-
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .grid-2 {
-                grid-template-columns: 1fr;
-            }
-
-            .actions {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-        }
-
-        .loading {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.7);
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .loading.active {
-            display: flex;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
 
         .btn-run {
-            background: #f59e0b;
-            color: white;
+            background: var(--warning);
+            color: var(--bg-dark);
         }
 
-        .btn-run:hover {
-            background: #d97706;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4);
-        }
+        .btn-run:hover { filter: brightness(1.1); }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .btn-run:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.875em;
-            font-weight: 600;
-            margin-left: 10px;
-        }
-
-        .status-badge.running {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .status-badge.idle {
-            background: #e5e7eb;
-            color: #6b7280;
-        }
-
+        /* Stats Dashboard */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
         }
 
         .stat-card {
-            background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 20px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
             text-align: center;
-            transition: transform 0.3s, box-shadow 0.3s;
         }
 
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
+        .stat-card.danger { border-color: var(--danger); }
 
-        .stat-card.stat-broken {
-            background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
-            border-color: #fca5a5;
-        }
-
-        .stat-value {
-            font-size: 2.5em;
+        .stat-num {
+            font-size: 20px;
             font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
+            color: var(--accent-light);
         }
 
-        .stat-card.stat-broken .stat-value {
-            color: #dc2626;
-        }
+        .stat-card.danger .stat-num { color: var(--danger); }
 
         .stat-label {
-            font-size: 0.875em;
-            color: #6b7280;
-            font-weight: 600;
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
         }
 
-        .category-breakdown {
-            background: #f9fafb;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
+        /* Category List */
+        .cat-list {
+            background: var(--bg-input);
+            border-radius: 4px;
+            padding: 8px;
         }
 
-        .category-breakdown h3 {
-            margin-bottom: 15px;
-            color: #374151;
-        }
-
-        .category-item {
+        .cat-item {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background: white;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+        }
+
+        .cat-item:last-child { border-bottom: none; }
+        .cat-count { color: var(--danger); }
+
+        /* Terminal Output */
+        .terminal {
+            background: var(--bg-dark);
             border-radius: 6px;
-            margin-bottom: 8px;
-            border-left: 4px solid #667eea;
+            padding: 12px;
+            font-family: 'SF Mono', monospace;
+            font-size: 11px;
+            height: 300px;
+            overflow-y: auto;
+            color: #0f0;
         }
 
-        .category-name {
-            font-weight: 600;
-            color: #374151;
+        .terminal-line { margin-bottom: 2px; }
+        .terminal-line.error { color: var(--danger); }
+        .terminal-line.warn { color: var(--warning); }
+        .terminal-line.info { color: var(--accent-light); }
+
+        /* Scanner Panel Styles */
+        .scanner-stats {
+            display: flex;
+            gap: 16px;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border-radius: 8px;
+            margin-bottom: 12px;
         }
 
-        .category-count {
-            background: #667eea;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
+        .scan-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .scan-stat-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .scan-stat-value {
+            font-size: 18px;
             font-weight: bold;
+            color: var(--accent-light);
+        }
+
+        .scan-stat-value.ok { color: var(--success); }
+        .scan-stat-value.broken { color: var(--danger); }
+
+        .progress-container {
+            position: relative;
+            height: 24px;
+            background: var(--bg-input);
+            border-radius: 4px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-light), var(--success));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: var(--text);
+            text-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
+
+        .url-stream {
+            height: 280px;
+            background: var(--bg-input);
+            border-radius: 8px;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .stream-placeholder {
+            color: var(--text-dim);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .url-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            margin-bottom: 2px;
+            border-radius: 3px;
+            animation: flyIn 0.3s ease-out;
+            background: rgba(255,255,255,0.02);
+        }
+
+        @keyframes flyIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .url-status {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .url-status.ok { background: var(--success); }
+        .url-status.broken { background: var(--danger); }
+        .url-status.skipped { background: var(--warning); }
+        .url-status.excluded { background: var(--warning); opacity: 0.6; }
+        .url-status.checking { background: var(--accent-light); animation: pulse 0.5s infinite; }
+
+        .url-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-dim);
+        }
+
+        .url-code {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--bg-input);
+            color: var(--text-dim);
+        }
+
+        .url-code.ok { background: rgba(0, 184, 148, 0.2); color: var(--success); }
+        .url-code.broken { background: rgba(231, 76, 60, 0.2); color: var(--danger); }
+        .url-code.excluded { background: rgba(234, 179, 8, 0.15); color: var(--warning); }
+
+        .broken-found {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid var(--danger);
+            border-radius: 8px;
+        }
+
+        .broken-list {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .broken-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: var(--bg-input);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            font-size: 10px;
+        }
+
+        .broken-item-url {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--danger);
+        }
+
+        .broken-item-code {
+            color: var(--text-dim);
+            margin-left: 8px;
+        }
+
+        .scan-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-pause   { background: var(--warning); color: #000; }
+        .btn-resume  { background: var(--success);  color: #000; }
+        .btn-stop    { background: var(--danger);   color: #fff; }
+        .btn-restart { background: #6366f1; color: #fff; }
+        .btn-restart:not(:disabled):hover { filter: brightness(1.1); }
+        .btn-restart:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-pause:disabled, .btn-stop:disabled, .btn-resume:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .btn-pause:not(:disabled):hover  { filter: brightness(1.1); }
+        .btn-resume:not(:disabled):hover { filter: brightness(1.1); }
+        .btn-stop:not(:disabled):hover   { filter: brightness(1.1); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+            .sidebar { display: none; }
+            .form-row { grid-template-columns: 1fr; }
+            .scanner-stats { flex-wrap: wrap; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="app">
+        <!-- Header -->
         <div class="header">
-            <h1>🔗 Broken Link Checker</h1>
-            <p>Configuration Management Panel <span class="status-badge idle" id="statusBadge">Idle</span></p>
+            <h1>
+                <span>🔗</span>
+                Broken Link Checker
+            </h1>
+            <div class="header-right">
+                <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Toggle theme">
+                    🌙
+                </button>
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Idle</span>
+                </div>
+            </div>
         </div>
 
-        <div class="content">
-            <div class="status-message" id="statusMessage"></div>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="nav-section">
+                <div class="nav-title">Navigation</div>
+                <button class="nav-btn active" onclick="showPanel('dashboard')">
+                    <span class="icon">📊</span> Dashboard
+                </button>
+                <button class="nav-btn" onclick="showPanel('scanner')">
+                    <span class="icon">🔍</span> Live Scanner
+                </button>
+                <button class="nav-btn" onclick="showPanel('urls')">
+                    <span class="icon">📄</span> URLs
+                </button>
+                <button class="nav-btn" onclick="showPanel('crawl')">
+                    <span class="icon">⚙️</span> Crawl Settings
+                </button>
+                <button class="nav-btn" onclick="showPanel('exclude')">
+                    <span class="icon">🚫</span> Exclusions
+                </button>
+                <button class="nav-btn" onclick="showPanel('notifications')">
+                    <span class="icon">🔔</span> Notifications
+                </button>
+                <button class="nav-btn" onclick="showPanel('github')">
+                    <span class="icon">📦</span> GitHub Pages
+                </button>
+            </div>
 
-            <!-- Statistics Dashboard -->
-            <div class="section" id="statsSection" style="display: none;">
-                <h2 class="section-title">📊 Latest Scan Statistics</h2>
+            <div class="nav-section">
+                <div class="nav-title">Actions</div>
+                <button class="nav-btn" onclick="runChecker()" id="runBtnNav">
+                    <span class="icon">▶️</span> Run Scan
+                </button>
+                <button class="nav-btn" onclick="saveConfig()">
+                    <span class="icon">💾</span> Save Config
+                </button>
+            </div>
+
+            <div class="quick-stats">
+                <div class="nav-title">Quick Stats</div>
+                <div class="stat-row"><span>Pages:</span><span class="stat-value pages" id="qsPages">-</span></div>
+                <div class="stat-row"><span>Links:</span><span id="qsLinks">-</span></div>
+                <div class="stat-row"><span>Broken:</span><span class="stat-value broken" id="qsBroken">-</span></div>
+                <div class="stat-row"><span>Last Run:</span><span id="qsTime">-</span></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <!-- Dashboard Panel -->
+            <div class="panel active" id="panel-dashboard">
+                <div class="panel-header">
+                    <h2 class="panel-title">📊 Scan Dashboard</h2>
+                    <button class="btn btn-run" onclick="runChecker()" id="runBtn">▶️ Run Scan</button>
+                </div>
+
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-value" id="statPages">-</div>
+                        <div class="stat-num" id="statPages">-</div>
                         <div class="stat-label">Pages Crawled</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="statLinks">-</div>
-                        <div class="stat-label">Total Links Scanned</div>
+                        <div class="stat-num" id="statLinks">-</div>
+                        <div class="stat-label">Links Checked</div>
                     </div>
-                    <div class="stat-card stat-broken">
-                        <div class="stat-value" id="statBroken">-</div>
-                        <div class="stat-label">Broken Links Found</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="statUnique">-</div>
-                        <div class="stat-label">Unique Broken URLs</div>
+                    <div class="stat-card danger">
+                        <div class="stat-num" id="statBroken">-</div>
+                        <div class="stat-label">Broken Links</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="statIgnored">-</div>
-                        <div class="stat-label">Exclusion Patterns</div>
+                        <div class="stat-num" id="statUnique">-</div>
+                        <div class="stat-label">Unique URLs</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="statTime">-</div>
+                        <div class="stat-num" id="statPatterns">-</div>
+                        <div class="stat-label">Exclusions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-num" id="statTime">-</div>
                         <div class="stat-label">Last Scan</div>
                     </div>
                 </div>
-                <div class="category-breakdown" id="categoryBreakdown"></div>
-            </div>
 
-            <!-- Documentation URLs -->
-            <div class="section">
-                <h2 class="section-title">📄 Documentation URLs</h2>
-                <div class="form-group">
-                    <label for="docsUrls">URLs to Check (comma-separated)</label>
-                    <textarea id="docsUrls" placeholder="https://help.sonatype.com/index.html?lang=en"></textarea>
-                    <small>Enter one or more documentation URLs to check, separated by commas</small>
+                <h3 style="font-size: 12px; margin-bottom: 8px; color: var(--text-dim);">Broken Links by Category</h3>
+                <div class="cat-list" id="catList">
+                    <div style="color: var(--text-dim); padding: 8px; text-align: center;">No data yet. Run a scan.</div>
                 </div>
             </div>
 
-            <!-- Crawl Settings -->
-            <div class="section">
-                <h2 class="section-title">⚙️ Crawl Settings</h2>
-                <p style="margin-bottom: 15px; color: #6b7280;">
-                    ℹ️ <strong>Note:</strong> Crawl depth is unlimited for internal Sonatype domain links to ensure complete coverage.
-                </p>
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label for="maxDepth">Max Crawl Depth</label>
-                        <input type="number" id="maxDepth" min="1" max="10" disabled>
-                        <small>Unlimited for internal links (setting ignored)</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="maxPages">Max Pages Per Site</label>
-                        <input type="number" id="maxPages" min="0">
-                        <small>0 = unlimited</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="maxLinks">Max Links to Check</label>
-                        <input type="number" id="maxLinks" min="0">
-                        <small>0 = unlimited</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="parallelWorkers">Parallel Workers</label>
-                        <input type="number" id="parallelWorkers" min="1" max="200">
-                        <small>Number of concurrent checks (1-200)</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="timeout">Request Timeout (seconds)</label>
-                        <input type="number" id="timeout" min="5" max="60">
-                        <small>Timeout for each link check</small>
+            <!-- Live Scanner Panel -->
+            <div class="panel" id="panel-scanner">
+                <div class="panel-header">
+                    <h2 class="panel-title">🔍 Live Scanner</h2>
+                    <div class="scan-controls">
+                        <button class="btn btn-run"     id="btnStart"   onclick="scanStart()">▶ Start</button>
+                        <button class="btn btn-pause"   id="btnPause"   onclick="scanPause()"   disabled>⏸ Pause</button>
+                        <button class="btn btn-resume"  id="btnResume"  onclick="scanResume()"  disabled style="display:none">▶ Resume</button>
+                        <button class="btn btn-stop"    id="btnStop"    onclick="scanStop()"    disabled>■ Stop</button>
+                        <button class="btn btn-restart" id="btnRestart" onclick="scanRestart()" disabled>↺ Restart</button>
                     </div>
                 </div>
-                <div class="toggle-group">
-                    <label class="toggle">
-                        <input type="checkbox" id="followExternal">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">Follow External Links</span>
+
+                <!-- Scanner Stats Bar -->
+                <div class="scanner-stats">
+                    <div class="scan-stat">
+                        <span class="scan-stat-label">Pages</span>
+                        <span class="scan-stat-value" id="liveScanned">0</span>
+                    </div>
+                    <div class="scan-stat">
+                        <span class="scan-stat-label">Links</span>
+                        <span class="scan-stat-value" id="liveLinks">0</span>
+                    </div>
+                    <div class="scan-stat">
+                        <span class="scan-stat-label">OK</span>
+                        <span class="scan-stat-value ok" id="liveOk">0</span>
+                    </div>
+                    <div class="scan-stat">
+                        <span class="scan-stat-label">Broken</span>
+                        <span class="scan-stat-value broken" id="liveBroken">0</span>
+                    </div>
+                    <div class="scan-stat">
+                        <span class="scan-stat-label">Speed</span>
+                        <span class="scan-stat-value" id="liveSpeed">0/s</span>
+                    </div>
                 </div>
-                <div class="toggle-group">
-                    <label class="toggle">
-                        <input type="checkbox" id="checkExternal">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">Check External Links</span>
+
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <div class="progress-bar" id="scanProgress"></div>
+                    <span class="progress-text" id="progressText">Ready to scan</span>
+                </div>
+
+                <!-- URL Stream - Flying URLs -->
+                <div class="url-stream" id="urlStream">
+                    <div class="stream-placeholder">Click "Start Scan" to begin scanning URLs</div>
+                </div>
+
+                <!-- Broken Links Found -->
+                <div class="broken-found" id="brokenFound" style="display: none;">
+                    <h3 style="font-size: 11px; margin-bottom: 8px; color: var(--danger);">⚠️ Broken Links Found</h3>
+                    <div class="broken-list" id="brokenList"></div>
+                </div>
+
+                <!-- Excluded Links -->
+                <div class="broken-found" id="excludedFound" style="display: none; border-color: var(--warning); background: rgba(234,179,8,0.07); margin-top: 8px;">
+                    <h3 style="font-size: 11px; margin-bottom: 8px; color: var(--warning);">🚫 Excluded Links <span id="excludedCount" style="font-weight:normal; color: var(--text-dim);">(0)</span></h3>
+                    <div class="broken-list" id="excludedList"></div>
                 </div>
             </div>
 
-            <!-- Exclusion Patterns -->
-            <div class="section">
-                <h2 class="section-title">🚫 Exclusion Patterns</h2>
-                <p style="margin-bottom: 15px; color: #6b7280;">
-                    Add regex patterns to exclude specific URLs from checking
-                </p>
-                <div class="exclude-patterns" id="excludePatterns"></div>
-                <button class="add-pattern-btn" onclick="addPattern()">+ Add Pattern</button>
+            <!-- URLs Panel -->
+            <div class="panel" id="panel-urls">
+                <div class="panel-header">
+                    <h2 class="panel-title">📄 Documentation URLs</h2>
+                </div>
+
+                <div class="form-row">
+                    <label>URLs to Check</label>
+                </div>
+                <textarea id="docsUrls" placeholder="https://help.sonatype.com/index.html?lang=en&#10;Separate multiple URLs with commas or new lines"></textarea>
+                <p style="font-size: 10px; color: var(--text-dim); margin-top: 6px;">Add documentation URLs to scan for broken links</p>
             </div>
 
-            <!-- Notifications -->
-            <div class="section">
-                <h2 class="section-title">🔔 Notifications</h2>
-                <div class="toggle-group">
-                    <label class="toggle">
-                        <input type="checkbox" id="enableDesktop">
-                        <span class="toggle-slider"></span>
-                    </label>
+            <!-- Crawl Settings Panel -->
+            <div class="panel" id="panel-crawl">
+                <div class="panel-header">
+                    <h2 class="panel-title">⚙️ Crawl Settings</h2>
+                </div>
+
+                <div class="form-row">
+                    <label>Max Pages Per Site</label>
+                    <input type="number" id="maxPages" min="0" value="0">
+                </div>
+                <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px;">0 = unlimited</p>
+
+                <div class="form-row">
+                    <label>Max Links to Check</label>
+                    <input type="number" id="maxLinks" min="0" value="0">
+                </div>
+                <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px;">0 = unlimited</p>
+
+                <div class="form-row">
+                    <label>Parallel Workers</label>
+                    <input type="number" id="parallelWorkers" min="1" max="200" value="100">
+                </div>
+
+                <div class="form-row">
+                    <label>Request Timeout (sec)</label>
+                    <input type="number" id="timeout" min="5" max="60" value="10">
+                </div>
+
+                <div style="margin-top: 12px;">
+                    <div class="toggle-row">
+                        <span class="toggle-label">Follow External Links</span>
+                        <label class="toggle"><input type="checkbox" id="followExternal"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <span class="toggle-label">Check External Links</span>
+                        <label class="toggle"><input type="checkbox" id="checkExternal"><span class="toggle-slider"></span></label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exclusions Panel -->
+            <div class="panel" id="panel-exclude">
+                <div class="panel-header">
+                    <h2 class="panel-title">🚫 Exclusion Patterns</h2>
+                    <button class="btn-icon add" onclick="addPattern()">+ Add</button>
+                </div>
+
+                <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 8px;">Regex patterns to skip specific URLs (PDFs, localhost, etc.)</p>
+
+                <div class="pattern-list" id="excludePatterns"></div>
+            </div>
+
+            <!-- Notifications Panel -->
+            <div class="panel" id="panel-notifications">
+                <div class="panel-header">
+                    <h2 class="panel-title">🔔 Notifications</h2>
+                </div>
+
+                <div class="toggle-row">
                     <span class="toggle-label">Desktop Notifications</span>
+                    <label class="toggle"><input type="checkbox" id="enableDesktop"><span class="toggle-slider"></span></label>
                 </div>
-                <div class="toggle-group">
-                    <label class="toggle">
-                        <input type="checkbox" id="enableSlack">
-                        <span class="toggle-slider"></span>
-                    </label>
+                <div class="toggle-row">
                     <span class="toggle-label">Slack Notifications</span>
+                    <label class="toggle"><input type="checkbox" id="enableSlack"><span class="toggle-slider"></span></label>
                 </div>
-                <div class="toggle-group">
-                    <label class="toggle">
-                        <input type="checkbox" id="notifyOnCompletion">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">Notify on Completion (even with no broken links)</span>
+                <div class="toggle-row">
+                    <span class="toggle-label">Notify on Completion</span>
+                    <label class="toggle"><input type="checkbox" id="notifyOnCompletion"><span class="toggle-slider"></span></label>
                 </div>
-                <div class="form-group">
-                    <label for="slackWebhook">Slack Webhook URL</label>
+
+                <div class="form-row" style="margin-top: 12px;">
+                    <label>Slack Webhook URL</label>
                     <input type="text" id="slackWebhook" placeholder="https://hooks.slack.com/services/...">
                 </div>
-                <div class="form-group">
-                    <label for="slackChannel">Slack Channel</label>
+
+                <div class="form-row">
+                    <label>Slack Channel</label>
                     <input type="text" id="slackChannel" placeholder="#tech-writers-india">
                 </div>
-                <div class="form-group">
-                    <label for="minAlerts">Minimum Broken Links for Alert</label>
-                    <input type="number" id="minAlerts" min="0">
-                    <small>Alert only if this many broken links are found</small>
+
+                <div class="form-row">
+                    <label>Min Broken Links for Alert</label>
+                    <input type="number" id="minAlerts" min="0" value="1">
                 </div>
             </div>
 
-            <!-- GitHub Pages -->
-            <div class="section">
-                <h2 class="section-title">📦 GitHub Pages</h2>
-                <div class="toggle-group">
-                    <label class="toggle">
-                        <input type="checkbox" id="enableGitHub">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">Auto-upload Reports to GitHub Pages</span>
+            <!-- GitHub Pages Panel -->
+            <div class="panel" id="panel-github">
+                <div class="panel-header">
+                    <h2 class="panel-title">📦 GitHub Pages Settings</h2>
                 </div>
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label for="githubRepo">Repository Name</label>
-                        <input type="text" id="githubRepo" placeholder="broken-links-reports">
-                    </div>
-                    <div class="form-group">
-                        <label for="githubUsername">GitHub Username</label>
-                        <input type="text" id="githubUsername" placeholder="your-username">
-                    </div>
+
+                <div class="toggle-row">
+                    <span class="toggle-label">Auto-upload Reports</span>
+                    <label class="toggle"><input type="checkbox" id="enableGitHub"><span class="toggle-slider"></span></label>
+                </div>
+
+                <div class="form-row" style="margin-top: 12px;">
+                    <label>Repository Name</label>
+                    <input type="text" id="githubRepo" placeholder="broken-links-reports">
+                </div>
+
+                <div class="form-row">
+                    <label>GitHub Username</label>
+                    <input type="text" id="githubUsername" placeholder="your-username">
                 </div>
             </div>
 
             <!-- Actions -->
             <div class="actions">
-                <button class="btn btn-run" id="runBtn" onclick="runChecker()">
-                    ▶️ Run Link Checker
-                </button>
-                <button class="btn btn-primary" onclick="saveConfig()">
-                    💾 Save Configuration
-                </button>
-                <button class="btn btn-secondary" onclick="saveAndPush()">
-                    🚀 Save & Push to Git
-                </button>
+                <button class="btn btn-run" onclick="runChecker()" id="runBtnBottom">▶️ Run Scan</button>
+                <button class="btn btn-primary" onclick="saveConfig()">💾 Save</button>
+                <button class="btn btn-success" onclick="saveAndPush()">🚀 Save & Push</button>
             </div>
         </div>
     </div>
 
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-    </div>
-
     <script>
         let excludePatterns = [];
+        let scanStats = { scanned: 0, ok: 0, broken: 0, skipped: 0, startTime: null };
+        // Rolling window for speed: store [timestamp, linksChecked] samples
+        let speedSamples = [];
+        let eventSource = null;
 
-        // Load configuration on page load
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const btn = document.getElementById('themeBtn');
+            if (html.getAttribute('data-theme') === 'light') {
+                html.removeAttribute('data-theme');
+                btn.textContent = '🌙';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                html.setAttribute('data-theme', 'light');
+                btn.textContent = '☀️';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Load saved theme
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.getElementById('themeBtn').textContent = '☀️';
+            }
+        });
+
+        // Panel Navigation
+        function showPanel(name) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('panel-' + name).classList.add('active');
+        }
+
+        // Load configuration
         window.addEventListener('DOMContentLoaded', () => {
             loadConfig();
             checkStatus();
             loadStats();
-            // Poll status every 5 seconds
             setInterval(checkStatus, 5000);
-            // Refresh stats every 30 seconds
             setInterval(loadStats, 30000);
+            connectScanner();
         });
 
         async function loadConfig() {
             try {
-                showLoading();
-                const response = await fetch('/api/config');
-                const config = await response.json();
+                const res = await fetch('/api/config');
+                const c = await res.json();
 
-                // Populate form fields
-                document.getElementById('docsUrls').value = config.docs_urls;
-                document.getElementById('maxDepth').value = config.max_crawl_depth;
-                document.getElementById('maxPages').value = config.max_pages_per_site;
-                document.getElementById('maxLinks').value = config.max_links_to_check;
-                document.getElementById('parallelWorkers').value = config.parallel_workers;
-                document.getElementById('timeout').value = config.request_timeout;
-                document.getElementById('followExternal').checked = config.follow_external_links;
-                document.getElementById('checkExternal').checked = config.check_external_links;
-                document.getElementById('enableDesktop').checked = config.enable_desktop_notifications;
-                document.getElementById('enableSlack').checked = config.enable_slack_notifications;
-                document.getElementById('slackWebhook').value = config.slack_webhook_url;
-                document.getElementById('slackChannel').value = config.slack_channel;
-                document.getElementById('minAlerts').value = config.min_broken_links_alert;
-                document.getElementById('notifyOnCompletion').checked = config.notify_on_completion;
-                document.getElementById('enableGitHub').checked = config.enable_github_upload;
-                document.getElementById('githubRepo').value = config.github_repo_name;
-                document.getElementById('githubUsername').value = config.github_username;
+                document.getElementById('docsUrls').value = c.docs_urls || '';
+                document.getElementById('maxPages').value = c.max_pages_per_site || 0;
+                document.getElementById('maxLinks').value = c.max_links_to_check || 0;
+                document.getElementById('parallelWorkers').value = c.parallel_workers || 100;
+                document.getElementById('timeout').value = c.request_timeout || 10;
+                document.getElementById('followExternal').checked = c.follow_external_links;
+                document.getElementById('checkExternal').checked = c.check_external_links;
+                document.getElementById('enableDesktop').checked = c.enable_desktop_notifications;
+                document.getElementById('enableSlack').checked = c.enable_slack_notifications;
+                document.getElementById('slackWebhook').value = c.slack_webhook_url || '';
+                document.getElementById('slackChannel').value = c.slack_channel || '';
+                document.getElementById('minAlerts').value = c.min_broken_links_alert || 1;
+                document.getElementById('notifyOnCompletion').checked = c.notify_on_completion;
+                document.getElementById('enableGitHub').checked = c.enable_github_upload;
+                document.getElementById('githubRepo').value = c.github_repo_name || '';
+                document.getElementById('githubUsername').value = c.github_username || '';
 
-                // Load exclusion patterns
-                excludePatterns = config.exclude_patterns || [];
+                excludePatterns = c.exclude_patterns || [];
                 renderPatterns();
-
-                hideLoading();
-            } catch (error) {
-                hideLoading();
-                showStatus('Failed to load configuration: ' + error.message, 'error');
+            } catch (e) {
+                console.error('Load error:', e);
             }
         }
 
         function renderPatterns() {
             const container = document.getElementById('excludePatterns');
-            container.innerHTML = '';
-
-            excludePatterns.forEach((pattern, index) => {
-                const div = document.createElement('div');
-                div.className = 'pattern-item';
-                div.innerHTML = `
-                    <input type="text" value="${pattern}" onchange="updatePattern(${index}, this.value)">
-                    <button onclick="removePattern(${index})">Remove</button>
-                `;
-                container.appendChild(div);
-            });
+            container.innerHTML = excludePatterns.map((p, i) => `
+                <div class="pattern-item">
+                    <input type="text" value="${p}" onchange="updatePattern(${i}, this.value)">
+                    <button class="btn-icon" onclick="removePattern(${i})">✕</button>
+                </div>
+            `).join('');
         }
 
         function addPattern() {
-            excludePatterns.push('');
+            excludePatterns.push('. *\\.pdf$');
             renderPatterns();
         }
 
-        function removePattern(index) {
-            excludePatterns.splice(index, 1);
+        function removePattern(i) {
+            excludePatterns.splice(i, 1);
             renderPatterns();
         }
 
-        function updatePattern(index, value) {
-            excludePatterns[index] = value;
+        function updatePattern(i, v) {
+            excludePatterns[i] = v;
         }
 
         async function saveConfig() {
+            const config = {
+                docs_urls: document.getElementById('docsUrls').value,
+                max_crawl_depth: 4,
+                max_pages_per_site: parseInt(document.getElementById('maxPages').value),
+                max_links_to_check: parseInt(document.getElementById('maxLinks').value),
+                parallel_workers: parseInt(document.getElementById('parallelWorkers').value),
+                request_timeout: parseInt(document.getElementById('timeout').value),
+                follow_external_links: document.getElementById('followExternal').checked,
+                check_external_links: document.getElementById('checkExternal').checked,
+                exclude_patterns: excludePatterns.filter(p => p.trim()),
+                enable_desktop_notifications: document.getElementById('enableDesktop').checked,
+                enable_slack_notifications: document.getElementById('enableSlack').checked,
+                slack_webhook_url: document.getElementById('slackWebhook').value,
+                slack_channel: document.getElementById('slackChannel').value,
+                min_broken_links_alert: parseInt(document.getElementById('minAlerts').value),
+                notify_on_completion: document.getElementById('notifyOnCompletion').checked,
+                enable_github_upload: document.getElementById('enableGitHub').checked,
+                github_repo_name: document.getElementById('githubRepo').value,
+                github_username: document.getElementById('githubUsername').value,
+            };
+
             try {
-                showLoading();
-
-                const config = {
-                    docs_urls: document.getElementById('docsUrls').value,
-                    max_crawl_depth: parseInt(document.getElementById('maxDepth').value),
-                    max_pages_per_site: parseInt(document.getElementById('maxPages').value),
-                    max_links_to_check: parseInt(document.getElementById('maxLinks').value),
-                    parallel_workers: parseInt(document.getElementById('parallelWorkers').value),
-                    request_timeout: parseInt(document.getElementById('timeout').value),
-                    follow_external_links: document.getElementById('followExternal').checked,
-                    check_external_links: document.getElementById('checkExternal').checked,
-                    exclude_patterns: excludePatterns.filter(p => p.trim()),
-                    enable_desktop_notifications: document.getElementById('enableDesktop').checked,
-                    enable_slack_notifications: document.getElementById('enableSlack').checked,
-                    slack_webhook_url: document.getElementById('slackWebhook').value,
-                    slack_channel: document.getElementById('slackChannel').value,
-                    min_broken_links_alert: parseInt(document.getElementById('minAlerts').value),
-                    notify_on_completion: document.getElementById('notifyOnCompletion').checked,
-                    enable_github_upload: document.getElementById('enableGitHub').checked,
-                    github_repo_name: document.getElementById('githubRepo').value,
-                    github_username: document.getElementById('githubUsername').value,
-                };
-
-                const response = await fetch('/api/config', {
+                const res = await fetch('/api/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
-
-                const result = await response.json();
-                hideLoading();
-
-                if (result.success) {
-                    showStatus('Configuration saved successfully!', 'success');
-                } else {
-                    showStatus('Failed to save configuration: ' + result.error, 'error');
-                }
-            } catch (error) {
-                hideLoading();
-                showStatus('Failed to save configuration: ' + error.message, 'error');
+                const result = await res.json();
+                alert(result.success ? '✅ Configuration saved!' : '❌ Failed: ' + result.error);
+            } catch (e) {
+                alert('❌ Error: ' + e.message);
             }
         }
 
         async function saveAndPush() {
             await saveConfig();
-
             try {
-                showLoading();
-                const response = await fetch('/api/git/commit', {
+                const res = await fetch('/api/git/commit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: 'Update configuration via UI' })
                 });
-
-                const result = await response.json();
-                hideLoading();
-
-                if (result.success) {
-                    showStatus('Configuration saved and pushed to git!', 'success');
-                } else {
-                    showStatus('Saved locally but failed to push to git: ' + result.error, 'error');
-                }
-            } catch (error) {
-                hideLoading();
-                showStatus('Saved locally but failed to push to git: ' + error.message, 'error');
+                const result = await res.json();
+                alert(result.success ? '✅ Saved & pushed to git!' : '❌ Push failed: ' + result.error);
+            } catch (e) {
+                alert('❌ Error: ' + e.message);
             }
         }
 
-        function showStatus(message, type) {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = message;
-            statusEl.className = 'status-message ' + type;
-            statusEl.style.display = 'block';
+        // ── Scan state: 'idle' | 'running' | 'paused'
+        let scanState = 'idle';
+        let pendingStart = false;  // true for 3s after clicking Start to prevent poller race
 
-            setTimeout(() => {
-                statusEl.style.display = 'none';
-            }, 5000);
+        function setScanState(state) {
+            scanState = state;
+            const dot     = document.getElementById('statusDot');
+            const text    = document.getElementById('statusText');
+            const start   = document.getElementById('btnStart');
+            const pause   = document.getElementById('btnPause');
+            const resume  = document.getElementById('btnResume');
+            const stop    = document.getElementById('btnStop');
+            const restart = document.getElementById('btnRestart');
+            const sideBtns = document.querySelectorAll('#runBtn, #runBtnNav, #runBtnBottom');
+
+            if (state === 'running') {
+                dot.classList.add('running');  dot.style.background = '';
+                text.textContent = 'Running...';
+                start.disabled   = true;
+                pause.disabled   = false; pause.style.display  = '';
+                resume.disabled  = true;  resume.style.display = 'none';
+                stop.disabled    = false;
+                restart.disabled = false;
+                sideBtns.forEach(b => { b.disabled = true; b.textContent = '⏳ Running...'; });
+            } else if (state === 'paused') {
+                dot.classList.remove('running'); dot.style.background = 'var(--warning)';
+                text.textContent = 'Paused';
+                start.disabled   = true;
+                pause.disabled   = true;  pause.style.display  = 'none';
+                resume.disabled  = false; resume.style.display = '';
+                stop.disabled    = false;
+                restart.disabled = false;
+                sideBtns.forEach(b => { b.disabled = true; b.textContent = '⏸ Paused'; });
+            } else {   // idle
+                dot.classList.remove('running'); dot.style.background = '';
+                text.textContent = 'Idle';
+                start.disabled   = false;
+                pause.disabled   = true;  pause.style.display  = '';
+                resume.disabled  = true;  resume.style.display = 'none';
+                stop.disabled    = true;
+                restart.disabled = true;
+                sideBtns.forEach(b => { b.disabled = false; b.textContent = '▶️ Run Scan'; });
+            }
         }
 
-        function showLoading() {
-            document.getElementById('loading').classList.add('active');
+        async function scanStart() {
+            if (!confirm('Start link checker? It may take 20–30 minutes.')) return;
+            pendingStart = true;
+            setTimeout(() => { pendingStart = false; }, 5000);
+            try {
+                const res = await fetch('/api/run-checker', { method: 'POST' });
+                const result = await res.json();
+                if (result.success) {
+                    setScanState('running');
+                    showPanel('scanner');
+                    document.getElementById('urlStream').innerHTML = '';
+                    document.getElementById('brokenFound').style.display = 'none';
+                    document.getElementById('brokenList').innerHTML = '';
+                    document.getElementById('excludedFound').style.display = 'none';
+                    document.getElementById('excludedList').innerHTML = '';
+                    document.getElementById('excludedCount').textContent = '(0)';
+                    document.getElementById('scanProgress').style.width = '0%';
+                    document.getElementById('progressText').textContent = 'Scanning...';
+                    speedSamples = [];
+                    scanStats = { scanned: 0, ok: 0, broken: 0, skipped: 0, excluded: 0, startTime: Date.now() };
+                    updateScannerStats();
+                } else {
+                    pendingStart = false;
+                    alert('❌ Failed: ' + result.error);
+                }
+            } catch (e) { pendingStart = false; alert('❌ ' + e.message); }
         }
 
-        function hideLoading() {
-            document.getElementById('loading').classList.remove('active');
+        async function scanPause() {
+            try {
+                const res = await fetch('/api/scanner/pause', { method: 'POST' });
+                const r = await res.json();
+                if (r.success) setScanState('paused');
+                else alert('❌ ' + r.error);
+            } catch (e) { alert('❌ ' + e.message); }
         }
+
+        async function scanResume() {
+            try {
+                const res = await fetch('/api/scanner/resume', { method: 'POST' });
+                const r = await res.json();
+                if (r.success) setScanState('running');
+                else alert('❌ ' + r.error);
+            } catch (e) { alert('❌ ' + e.message); }
+        }
+
+        async function scanStop() {
+            if (!confirm('Stop the current scan?')) return;
+            try {
+                const res = await fetch('/api/scanner/stop', { method: 'POST' });
+                const r = await res.json();
+                if (r.success) {
+                    setScanState('idle');
+                    document.getElementById('progressText').textContent = '🛑 Scan stopped';
+                } else alert('❌ ' + r.error);
+            } catch (e) { alert('❌ ' + e.message); }
+        }
+
+        async function scanRestart() {
+            if (!confirm('Stop current scan and restart with the latest saved config?')) return;
+            // Stop first (if running/paused)
+            try {
+                await fetch('/api/scanner/stop', { method: 'POST' });
+            } catch (e) {}
+            // Small delay to let the process die
+            await new Promise(r => setTimeout(r, 800));
+            // Clear all UI state
+            statsRestored = false;
+            pendingStart = true;
+            setTimeout(() => { pendingStart = false; }, 5000);
+            document.getElementById('urlStream').innerHTML = '';
+            document.getElementById('brokenFound').style.display = 'none';
+            document.getElementById('brokenList').innerHTML = '';
+            document.getElementById('excludedFound').style.display = 'none';
+            document.getElementById('excludedList').innerHTML = '';
+            document.getElementById('excludedCount').textContent = '(0)';
+            document.getElementById('scanProgress').style.width = '0%';
+            document.getElementById('progressText').textContent = 'Restarting...';
+            document.getElementById('liveLinks').textContent = '0';
+            speedSamples = [];
+            scanStats = { scanned: 0, ok: 0, broken: 0, skipped: 0, excluded: 0, startTime: Date.now() };
+            updateScannerStats();
+            // Start fresh
+            try {
+                const res = await fetch('/api/run-checker', { method: 'POST' });
+                const result = await res.json();
+                if (result.success) {
+                    setScanState('running');
+                    showPanel('scanner');
+                    document.getElementById('progressText').textContent = 'Scanning...';
+                } else {
+                    pendingStart = false;
+                    setScanState('idle');
+                    alert('❌ Restart failed: ' + result.error);
+                }
+            } catch (e) {
+                pendingStart = false;
+                setScanState('idle');
+                alert('❌ ' + e.message);
+            }
+        }
+
+        // Keep runChecker as alias for sidebar/bottom buttons
+        function runChecker() { scanStart(); }
 
         async function checkStatus() {
             try {
-                const response = await fetch('/api/checker-status');
-                const status = await response.json();
-
-                const badge = document.getElementById('statusBadge');
-                const runBtn = document.getElementById('runBtn');
-
-                if (status.is_running) {
-                    badge.textContent = 'Running...';
-                    badge.className = 'status-badge running';
-                    runBtn.disabled = true;
-                    runBtn.textContent = '⏳ Running...';
+                const res = await fetch('/api/checker-status');
+                const status = await res.json();
+                if (status.is_paused) {
+                    setScanState('paused');
+                    restoreLiveStats();
+                } else if (status.is_running) {
+                    setScanState('running');
+                    restoreLiveStats();
                 } else {
-                    badge.textContent = 'Idle';
-                    badge.className = 'status-badge idle';
-                    runBtn.disabled = false;
-                    runBtn.textContent = '▶️ Run Link Checker';
+                    if (!pendingStart) setScanState('idle');
                 }
-            } catch (error) {
-                console.error('Failed to check status:', error);
-            }
+            } catch (e) {}
         }
 
-        async function runChecker() {
-            if (!confirm('This will start the link checker. It may take 20-30 minutes to complete. Continue?')) {
-                return;
-            }
-
+        let statsRestored = false;
+        async function restoreLiveStats() {
+            if (statsRestored) return;  // only restore once per page load
+            statsRestored = true;
             try {
-                showLoading();
-                const response = await fetch('/api/run-checker', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                const result = await response.json();
-                hideLoading();
-
-                if (result.success) {
-                    showStatus('Link checker started successfully! Check progress in terminal or wait for completion notification.', 'success');
-                    checkStatus(); // Update status immediately
-                } else {
-                    showStatus('Failed to start link checker: ' + result.error, 'error');
+                const res = await fetch('/api/scanner/live-stats');
+                const s = await res.json();
+                scanStats.scanned = s.pages || 0;
+                scanStats.ok = s.ok || 0;
+                scanStats.broken = s.broken || 0;
+                scanStats.excluded = s.excluded || 0;
+                if (!scanStats.startTime) scanStats.startTime = Date.now();
+                updateScannerStats();
+                if (s.links_total > 0) {
+                    document.getElementById('liveLinks').textContent = s.links_checked.toLocaleString();
+                    document.getElementById('scanProgress').style.width = s.percent + '%';
+                    document.getElementById('progressText').textContent =
+                        `${s.links_checked.toLocaleString()} / ${s.links_total.toLocaleString()} links (${s.percent}%)`;
                 }
-            } catch (error) {
-                hideLoading();
-                showStatus('Failed to start link checker: ' + error.message, 'error');
-            }
+            } catch (e) {}
         }
 
         async function loadStats() {
             try {
-                const response = await fetch('/api/stats');
-                const stats = await response.json();
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                if (stats.error) return;
 
-                if (stats.error) {
-                    return; // No stats available yet
-                }
+                document.getElementById('statPages').textContent = stats.pages_crawled || 0;
+                document.getElementById('statLinks').textContent = stats.total_links_scanned || 0;
+                document.getElementById('statBroken').textContent = stats.broken_links || 0;
+                document.getElementById('statUnique').textContent = stats.unique_links || 0;
+                document.getElementById('statPatterns').textContent = stats.ignored_patterns || 0;
 
-                // Show stats section
-                document.getElementById('statsSection').style.display = 'block';
+                // Quick stats
+                document.getElementById('qsPages').textContent = stats.pages_crawled || '-';
+                document.getElementById('qsLinks').textContent = stats.total_links_scanned || '-';
+                document.getElementById('qsBroken').textContent = stats.broken_links || '-';
 
-                // Update stat cards
-                document.getElementById('statPages').textContent = stats.pages_crawled.toLocaleString();
-                document.getElementById('statLinks').textContent = stats.total_links_scanned.toLocaleString();
-                document.getElementById('statBroken').textContent = stats.broken_links.toLocaleString();
-                document.getElementById('statUnique').textContent = stats.unique_links.toLocaleString();
-                document.getElementById('statIgnored').textContent = stats.ignored_patterns + ' patterns';
-
-                // Format last scan time
                 if (stats.last_scan_time) {
-                    const scanDate = new Date(stats.last_scan_time);
-                    document.getElementById('statTime').textContent = scanDate.toLocaleDateString() + ' ' + scanDate.toLocaleTimeString();
+                    const d = new Date(stats.last_scan_time);
+                    document.getElementById('statTime').textContent = d.toLocaleDateString();
+                    document.getElementById('qsTime').textContent = d.toLocaleTimeString();
                 }
 
-                // Update category breakdown
-                const categoryDiv = document.getElementById('categoryBreakdown');
-                if (Object.keys(stats.categories).length > 0) {
-                    let html = '<h3>Broken Links by Category</h3>';
-                    for (const [category, count] of Object.entries(stats.categories)) {
-                        html += `
-                            <div class="category-item">
-                                <span class="category-name">${category}</span>
-                                <span class="category-count">${count}</span>
-                            </div>
-                        `;
-                    }
-                    categoryDiv.innerHTML = html;
-                } else {
-                    categoryDiv.innerHTML = '';
+                // Categories
+                const catList = document.getElementById('catList');
+                if (Object.keys(stats.categories || {}).length) {
+                    catList.innerHTML = Object.entries(stats.categories)
+                        .map(([cat, count]) => `<div class="cat-item"><span>${cat}</span><span class="cat-count">${count}</span></div>`)
+                        .join('');
                 }
-            } catch (error) {
-                console.error('Failed to load stats:', error);
+            } catch (e) {}
+        }
+
+        // Connect to Scanner SSE
+        function connectScanner() {
+            if (eventSource) eventSource.close();
+
+            eventSource = new EventSource('/api/scanner/stream');
+
+            eventSource.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                handleScannerEvent(data);
+            };
+
+            eventSource.onerror = function() {
+                // Reconnect after 5 seconds
+                setTimeout(connectScanner, 5000);
+            };
+        }
+
+        function handleScannerEvent(data) {
+            const stream = document.getElementById('urlStream');
+
+            if (data.type === 'start') {
+                statsRestored = false;
+                speedSamples = [];
+                scanStats = { scanned: 0, ok: 0, broken: 0, skipped: 0, excluded: 0, startTime: Date.now() };
+                stream.innerHTML = '';
+                document.getElementById('brokenFound').style.display = 'none';
+                document.getElementById('brokenList').innerHTML = '';
+                document.getElementById('excludedFound').style.display = 'none';
+                document.getElementById('excludedList').innerHTML = '';
+                document.getElementById('excludedCount').textContent = '(0)';
+                document.getElementById('scanProgress').style.width = '0%';
+                document.getElementById('progressText').textContent = 'Scanning...';
+                document.getElementById('liveLinks').textContent = '0';
+                updateScannerStats();
+                setScanState('running');
             }
+
+            else if (data.type === 'url') {
+                const statusClass = (data.status === 200 || data.status === 'ok') ? 'ok'
+                                  : (data.status === 'skipped' || data.status === 'start') ? 'skipped'
+                                  : data.status === 'excluded' ? 'excluded'
+                                  : 'broken';
+
+                // Don't clutter stream with excluded URLs — only show in the excluded section
+                if (statusClass !== 'excluded') {
+                    const urlItem = document.createElement('div');
+                    urlItem.className = 'url-item';
+                    urlItem.innerHTML = `
+                        <div class="url-status ${statusClass}"></div>
+                        <div class="url-text" title="${data.url}">${truncateUrl(data.url, 80)}</div>
+                        <div class="url-code ${statusClass}">${data.label || data.status || '---'}</div>
+                    `;
+                    stream.insertBefore(urlItem, stream.firstChild);
+                    while (stream.children.length > 100) {
+                        stream.removeChild(stream.lastChild);
+                    }
+                }
+
+                // Update stats
+                scanStats.scanned++;
+                if (data.status === 200 || data.status === 'ok') scanStats.ok++;
+                else if (data.status === 'skipped' || data.status === 'start') scanStats.skipped++;
+                else if (data.status === 'excluded') scanStats.excluded = (scanStats.excluded || 0) + 1;
+                else scanStats.broken++;
+
+                updateScannerStats();
+
+                if (statusClass === 'broken') {
+                    showBrokenLink(data.url, data.status);
+                } else if (statusClass === 'excluded') {
+                    showExcludedLink(data.url);
+                }
+            }
+
+            else if (data.type === 'progress') {
+                document.getElementById('scanProgress').style.width = data.percent + '%';
+                document.getElementById('progressText').textContent =
+                    `${data.checked.toLocaleString()} / ${data.total.toLocaleString()} links (${data.percent}%)`;
+                document.getElementById('liveLinks').textContent = data.checked.toLocaleString();
+            }
+
+            else if (data.type === 'complete') {
+                // Don't override a pause the user explicitly set
+                if (scanState === 'paused') return;
+                document.getElementById('scanProgress').style.width = '100%';
+                const msg = scanStats.scanned > 0
+                    ? `✅ Scan complete! ${scanStats.scanned} URLs checked, ${scanStats.broken} broken`
+                    : 'Ready to scan';
+                document.getElementById('progressText').textContent = msg;
+                setScanState('idle');
+            }
+        }
+
+        function updateScannerStats() {
+            document.getElementById('liveScanned').textContent = scanStats.scanned;
+            document.getElementById('liveOk').textContent = scanStats.ok;
+            document.getElementById('liveBroken').textContent = scanStats.broken;
+
+            // Speed: use links/sec from rolling 5s window if link-check phase started,
+            // otherwise pages/sec from total elapsed
+            const linksEl = document.getElementById('liveLinks');
+            const linksNow = parseInt(linksEl.textContent.replace(/,/g, '')) || 0;
+            const now = Date.now();
+
+            if (linksNow > 0) {
+                // Link-check phase — rolling 5s window
+                speedSamples.push([now, linksNow]);
+                speedSamples = speedSamples.filter(s => now - s[0] < 5000);
+                if (speedSamples.length >= 2) {
+                    const oldest = speedSamples[0];
+                    const dt = (now - oldest[0]) / 1000;
+                    const dl = linksNow - oldest[1];
+                    const speed = dt > 0 ? Math.round(dl / dt) : 0;
+                    document.getElementById('liveSpeed').textContent = speed.toLocaleString() + '/s';
+                }
+            } else if (scanStats.startTime) {
+                // Crawl phase — pages/sec since start
+                const elapsed = (now - scanStats.startTime) / 1000;
+                const speed = elapsed > 0 ? Math.round(scanStats.scanned / elapsed) : 0;
+                document.getElementById('liveSpeed').textContent = speed + '/s';
+            }
+        }
+
+        function showBrokenLink(url, status) {
+            const brokenFound = document.getElementById('brokenFound');
+            const brokenList = document.getElementById('brokenList');
+            brokenFound.style.display = 'block';
+            const item = document.createElement('div');
+            item.className = 'broken-item';
+            item.innerHTML = `
+                <span class="broken-item-url" title="${url}">${truncateUrl(url, 60)}</span>
+                <span class="broken-item-code">${status}</span>
+            `;
+            brokenList.insertBefore(item, brokenList.firstChild);
+        }
+
+        function showExcludedLink(url) {
+            const section = document.getElementById('excludedFound');
+            const list = document.getElementById('excludedList');
+            const counter = document.getElementById('excludedCount');
+            section.style.display = 'block';
+            const item = document.createElement('div');
+            item.className = 'broken-item';
+            item.innerHTML = `
+                <span class="broken-item-url" style="color: var(--warning);" title="${url}">${truncateUrl(url, 70)}</span>
+                <span class="broken-item-code">excluded</span>
+            `;
+            list.insertBefore(item, list.firstChild);
+            counter.textContent = `(${list.children.length})`;
+        }
+
+        function truncateUrl(url, maxLen) {
+            if (url.length <= maxLen) return url;
+            return url.substring(0, maxLen/2) + '...' + url.substring(url.length - maxLen/2);
         }
     </script>
 </body>

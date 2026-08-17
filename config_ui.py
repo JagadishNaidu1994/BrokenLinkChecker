@@ -231,41 +231,236 @@ def git_commit_push():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+LOG_FILE = Path(__file__).parent / 'link_checker_enhanced.log'
+PID_FILE = Path(__file__).parent / '.scanner.pid'
+
+
+def _write_pid(pid: int):
+    PID_FILE.write_text(str(pid))
+
+
+def _read_pid() -> int | None:
+    """Read PID from file and verify the process is still alive."""
+    if not PID_FILE.exists():
+        return None
+    try:
+        pid = int(PID_FILE.read_text().strip())
+        os.kill(pid, 0)   # signal 0 = existence check only
+        return pid
+    except (ValueError, ProcessLookupError, PermissionError):
+        PID_FILE.unlink(missing_ok=True)
+        return None
+
+
+def _clear_pid():
+    PID_FILE.unlink(missing_ok=True)
+
+
+def parse_log_line(line: str):
+    """Parse a log line into a scanner event dict, or return None."""
+    import re
+
+    # Crawling a page
+    m = re.search(r'Crawling .+?: (.+)', line)
+    if m:
+        return {'type': 'url', 'url': m.group(1).strip(), 'status': 'ok', 'label': 'CRAWL'}
+
+    # Broken link  e.g.  ❌ BROKEN: https://... (404)
+    m = re.search(r'BROKEN:\s+(\S+)\s+\((.+?)\)', line)
+    if m:
+        return {'type': 'url', 'url': m.group(1), 'status': m.group(2), 'label': 'BROKEN'}
+
+    # Excluded link  e.g.  EXCLUDED: https://...
+    m = re.search(r'EXCLUDED:\s+(\S+)', line)
+    if m:
+        return {'type': 'url', 'url': m.group(1), 'status': 'excluded', 'label': 'EXCL'}
+
+    # Checked N/M links
+    m = re.search(r'Checked (\d+)/(\d+) links', line)
+    if m:
+        checked, total = int(m.group(1)), int(m.group(2))
+        pct = int(checked / total * 100) if total else 0
+        return {'type': 'progress', 'checked': checked, 'total': total, 'percent': pct}
+
+    # Check complete
+    if 'Check Complete' in line or 'check complete' in line.lower():
+        return {'type': 'complete'}
+
+    # Starting crawl
+    m = re.search(r'Starting crawl from:\s+(\S+)', line)
+    if m:
+        return {'type': 'url', 'url': m.group(1), 'status': 'start', 'label': 'START'}
+
+    return None
+
+
+def generate_scanner_stream():
+    """Tail the log file and stream events as SSE."""
+    import json, time, os
+
+    yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+
+    # Seek to current end of log (or beginning if new file)
+    log_pos = LOG_FILE.stat().st_size if LOG_FILE.exists() else 0
+    last_url_event = None  # dedupe consecutive duplicate url events
+
+    while True:
+        try:
+            # Check if process is alive
+            proc = subprocess.run(['pgrep', '-f', 'enhanced_link_checker.py'], capture_output=True)
+            is_running = proc.returncode == 0
+
+            if LOG_FILE.exists():
+                current_size = LOG_FILE.stat().st_size
+                if current_size > log_pos:
+                    with open(LOG_FILE, 'r', errors='replace') as f:
+                        f.seek(log_pos)
+                        new_lines = f.read()
+                        log_pos = f.tell()
+
+                    for line in new_lines.splitlines():
+                        event = parse_log_line(line)
+                        if event:
+                            # Drop exact duplicate url events (caused by double logger)
+                            if event.get('type') == 'url':
+                                key = (event.get('url'), event.get('status'))
+                                if key == last_url_event:
+                                    continue
+                                last_url_event = key
+                            yield f"data: {json.dumps(event)}\n\n"
+
+            if not is_running:
+                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+                # Keep stream open for future scans, reset position
+                while True:
+                    time.sleep(2)
+                    proc = subprocess.run(['pgrep', '-f', 'enhanced_link_checker.py'], capture_output=True)
+                    if proc.returncode == 0:
+                        # New scan started — seek to new end of log
+                        log_pos = LOG_FILE.stat().st_size if LOG_FILE.exists() else 0
+                        last_url_event = None
+                        yield f"data: {json.dumps({'type': 'start'})}\n\n"
+                        break
+                    yield f": heartbeat\n\n"
+
+            time.sleep(0.3)
+
+        except GeneratorExit:
+            break
+        except Exception as e:
+            print(f"SSE error: {e}")
+            time.sleep(1)
+
+
+@app.route('/api/scanner/stream')
+def scanner_stream():
+    """SSE endpoint for real-time scanner updates."""
+    from flask import Response
+    return Response(
+        generate_scanner_stream(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
 @app.route('/api/run-checker', methods=['POST'])
 def run_checker():
     """Run the link checker."""
     try:
         script_path = Path(__file__).parent / 'enhanced_link_checker.py'
 
-        # Run in background
-        process = subprocess.Popen(
-            ['python3', str(script_path)],
-            cwd=Path(__file__).parent,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
+        # Truncate the log file so SSE only streams this run
+        LOG_FILE.write_text('')
 
-        return jsonify({
-            'success': True,
-            'message': 'Link checker started successfully!',
-            'pid': process.pid
-        })
+        with open(LOG_FILE, 'a') as log_out:
+            process = subprocess.Popen(
+                ['python3', str(script_path)],
+                cwd=Path(__file__).parent,
+                stdout=log_out,
+                stderr=log_out
+            )
+        _write_pid(process.pid)
+
+        return jsonify({'success': True, 'pid': process.pid})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/scanner/stop', methods=['POST'])
+def scanner_stop():
+    import signal
+    pid = _read_pid()
+    if not pid:
+        return jsonify({'success': False, 'error': 'No scan running'})
+    try:
+        # Resume first so SIGTERM is delivered immediately (paused processes queue signals)
+        try:
+            os.kill(pid, signal.SIGCONT)
+        except Exception:
+            pass
+        os.kill(pid, signal.SIGTERM)
+        _clear_pid()
+        return jsonify({'success': True})
+    except Exception as e:
+        _clear_pid()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/scanner/pause', methods=['POST'])
+def scanner_pause():
+    import signal
+    pid = _read_pid()
+    if not pid:
+        return jsonify({'success': False, 'error': 'No scan running'})
+    try:
+        os.kill(pid, signal.SIGSTOP)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/scanner/resume', methods=['POST'])
+def scanner_resume():
+    import signal
+    pid = _read_pid()
+    if not pid:
+        return jsonify({'success': False, 'error': 'No scan running'})
+    try:
+        os.kill(pid, signal.SIGCONT)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+def _is_pid_paused(pid: int) -> bool:
+    """Return True if the process exists but is stopped (SIGSTOP'd)."""
+    try:
+        with open(f'/proc/{pid}/status') as f:
+            for line in f:
+                if line.startswith('State:'):
+                    return 'T' in line  # T = stopped/traced
+    except Exception:
+        pass
+    # macOS fallback via ps
+    try:
+        out = subprocess.run(['ps', '-o', 'stat=', '-p', str(pid)],
+                             capture_output=True, text=True)
+        return 'T' in out.stdout
+    except Exception:
+        return False
 
 
 @app.route('/api/checker-status', methods=['GET'])
 def checker_status():
     """Check if the link checker is running."""
     try:
-        # Check if enhanced_link_checker.py process is running
-        result = subprocess.run(
-            ['pgrep', '-f', 'enhanced_link_checker.py'],
-            capture_output=True,
-            text=True
-        )
-
-        is_running = result.returncode == 0
+        pid = _read_pid()
+        is_running = pid is not None
+        is_paused = is_running and _is_pid_paused(pid)
 
         # Get latest report info
         reports_dir = Path(__file__).parent / 'reports'
@@ -282,10 +477,59 @@ def checker_status():
 
         return jsonify({
             'is_running': is_running,
+            'is_paused': is_paused,
             'latest_report': latest_report
         })
     except Exception as e:
-        return jsonify({'is_running': False, 'error': str(e)})
+        return jsonify({'is_running': False, 'is_paused': False, 'error': str(e)})
+
+
+@app.route('/api/scanner/live-stats', methods=['GET'])
+def scanner_live_stats():
+    """Parse current log for live counters so frontend can restore after refresh."""
+    import re
+    stats = {'pages': 0, 'ok': 0, 'broken': 0, 'excluded': 0,
+             'links_checked': 0, 'links_total': 0, 'percent': 0}
+    if not LOG_FILE.exists():
+        return jsonify(stats)
+    try:
+        seen_pages = set()
+        seen_broken = set()
+        seen_excluded = set()
+        links_checked = 0
+        links_total = 0
+        with open(LOG_FILE, 'r', errors='replace') as f:
+            for line in f:
+                # Pages crawled — dedupe by URL to ignore double-logger duplicates
+                m = re.search(r'Crawling \[\d+\] depth=\d+: (\S+)', line)
+                if m:
+                    seen_pages.add(m.group(1))
+                    continue
+                # Broken links — dedupe by URL
+                m = re.search(r'BROKEN:\s+(\S+)', line)
+                if m:
+                    seen_broken.add(m.group(1))
+                    continue
+                # Excluded — dedupe by URL
+                m = re.search(r'EXCLUDED:\s+(\S+)', line)
+                if m:
+                    seen_excluded.add(m.group(1))
+                    continue
+                # Progress — last value wins (already deduplicated by content)
+                m = re.search(r'Checked (\d+)/(\d+) links', line)
+                if m:
+                    links_checked = int(m.group(1))
+                    links_total = int(m.group(2))
+        stats['pages'] = len(seen_pages)
+        stats['broken'] = len(seen_broken)
+        stats['excluded'] = len(seen_excluded)
+        stats['ok'] = max(0, stats['pages'] - stats['broken'])
+        stats['links_checked'] = links_checked
+        stats['links_total'] = links_total
+        stats['percent'] = int(links_checked / links_total * 100) if links_total else 0
+    except Exception as e:
+        stats['error'] = str(e)
+    return jsonify(stats)
 
 
 @app.route('/api/stats', methods=['GET'])

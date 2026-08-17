@@ -46,13 +46,11 @@ def setup_logging(log_file: str = "link_checker_enhanced.log") -> logging.Logger
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
 
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setFormatter(formatter)
-
     logger = logging.getLogger('enhanced_link_checker')
     logger.setLevel(logging.INFO)
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+    # Only add handler if not already configured (prevents duplicate handlers on re-import)
+    if not logger.handlers:
+        logger.addHandler(console_handler)
 
     return logger
 
@@ -319,7 +317,7 @@ class EnhancedLinkChecker:
             allowed_methods=["HEAD", "GET", "OPTIONS"]
         )
 
-        adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=100, pool_maxsize=100)
+        adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=20, pool_maxsize=20)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
 
@@ -748,241 +746,266 @@ class EnhancedReportGenerator:
             link['category'] = category
             by_category[category].append(link)
 
-        # Generate HTML
+        # Build rows JSON for JS filtering
+        import json as _json
+        all_rows = []
+        for category in sorted(by_category.keys()):
+            display_cat = CategoryExtractor.get_display_category(category)
+            for link in by_category[category]:
+                error_type = link['error']
+                if 'HTTP 404' in error_type or '404' in error_type:
+                    error_label = '404'
+                    error_class = 'e404'
+                elif 'Connection Failed' in error_type or 'connection' in error_type.lower():
+                    error_label = 'Connection'
+                    error_class = 'econn'
+                elif 'SSL' in error_type:
+                    error_label = 'SSL'
+                    error_class = 'essl'
+                elif 'Timeout' in error_type:
+                    error_label = 'Timeout'
+                    error_class = 'etimeout'
+                elif 'Invalid' in error_type or 'not a valid' in error_type.lower():
+                    error_label = 'Invalid URL'
+                    error_class = 'einvalid'
+                else:
+                    error_label = error_type[:18]
+                    error_class = 'eother'
+                source = link['source']
+                url = link['url']
+                context = (link.get('context') or '').strip()
+                if len(context) > 120:
+                    context = context[:117] + '...'
+                all_rows.append({
+                    'cat': display_cat,
+                    'src': source,
+                    'url': url,
+                    'ctx': context,
+                    'err': error_label,
+                    'ecls': error_class,
+                })
+
+        rows_json = _json.dumps(all_rows)
+        cats_json = _json.dumps(sorted([CategoryExtractor.get_display_category(c) for c in by_category.keys()]))
+        scan_ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        total_broken = len(broken_links)
+        total_cats = len(by_category)
+
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Broken Links Report - {timestamp}</title>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(to bottom, #ffffff, #f5f3ff);
-            padding: 40px 20px;
-            color: #333;
-        }}
-        .container {{
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            padding: 40px;
-        }}
-        h1 {{
-            color: #6B46C1;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }}
-        .timestamp {{
-            color: #666;
-            font-size: 1.1em;
-            margin-bottom: 30px;
-        }}
-        .summary {{
-            background: #f8f9fa;
-            border-left: 4px solid #6B46C1;
-            padding: 20px;
-            margin-bottom: 30px;
-            border-radius: 8px;
-        }}
-        .summary h2 {{
-            color: #6B46C1;
-            font-size: 1.5em;
-            margin-bottom: 15px;
-        }}
-        .summary p {{
-            font-size: 1.1em;
-            line-height: 1.6;
-            margin: 8px 0;
-        }}
-        .category {{
-            margin: 30px 0;
-            border: 2px solid #6B46C1;
-            border-radius: 10px;
-            overflow-x: auto;
-        }}
-        .category-header {{
-            background: #6B46C1;
-            color: white;
-            padding: 15px 20px;
-            font-size: 1.3em;
-            font-weight: 600;
-        }}
-        .category-count {{
-            float: right;
-            background: rgba(255,255,255,0.2);
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-size: 0.9em;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: auto;
-        }}
-        th {{
-            background: #f8f9fa;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            border-bottom: 2px solid #ddd;
-            font-size: 0.95em;
-        }}
-        td {{
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            font-size: 0.9em;
-            vertical-align: top;
-        }}
-        tr:hover {{
-            background: #f8f9fa;
-        }}
-        .broken-link {{
-            color: #dc3545;
-            white-space: nowrap;
-            overflow: visible;
-            font-family: monospace;
-            font-size: 0.85em;
-            display: inline-block;
-        }}
-        td:nth-child(2) {{
-            white-space: nowrap;
-            min-width: 300px;
-        }}
-        .source-link {{
-            color: #0066cc;
-            word-break: break-all;
-            font-size: 0.85em;
-        }}
-        .context {{
-            color: #555;
-            font-style: italic;
-            max-width: 400px;
-            line-height: 1.4;
-        }}
-        .error-badge {{
-            background: #dc3545;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }}
-        .logo {{
-            text-align: center;
-            margin-top: 40px;
-            color: #6B46C1;
-            font-size: 1.2em;
-            font-weight: 600;
-        }}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broken Links Report — {scan_ts}</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#f4f5f7;color:#172b4d;min-height:100vh}}
+a{{color:#0052cc;text-decoration:none}}a:hover{{text-decoration:underline}}
+
+/* ── top bar ── */
+.topbar{{background:#fff;border-bottom:1px solid #dfe1e6;padding:0 24px;display:flex;align-items:center;height:48px;gap:16px;position:sticky;top:0;z-index:100}}
+.topbar-logo{{font-weight:700;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:6px}}
+.topbar-logo span{{color:#e34234}}
+.topbar-meta{{color:#6b778c;font-size:12px;margin-left:auto}}
+
+/* ── layout ── */
+.page{{max-width:1320px;margin:0 auto;padding:20px 24px}}
+
+/* ── stat cards ── */
+.stats{{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}}
+.stat-card{{background:#fff;border:1px solid #dfe1e6;border-radius:4px;padding:12px 20px;min-width:120px;flex:1}}
+.stat-card .val{{font-size:28px;font-weight:700;line-height:1}}
+.stat-card .lbl{{font-size:11px;color:#6b778c;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}}
+.stat-card.red .val{{color:#de350b}}
+.stat-card.green .val{{color:#00875a}}
+.stat-card.blue .val{{color:#0052cc}}
+.stat-card.grey .val{{font-size:13px;font-weight:600;color:#172b4d;padding-top:4px}}
+
+/* ── page heading ── */
+.page-heading{{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}}
+.page-heading h1{{font-size:20px;font-weight:700;color:#172b4d}}
+.page-sub{{font-size:12px;color:#6b778c;margin-top:3px}}
+
+/* ── toolbar ── */
+.toolbar{{background:#fff;border:1px solid #dfe1e6;border-radius:4px;padding:10px 14px;display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}}
+.toolbar input{{border:1px solid #dfe1e6;border-radius:3px;padding:5px 10px;font-size:12px;width:260px;outline:none;color:#172b4d}}
+.toolbar input:focus{{border-color:#4c9aff;box-shadow:0 0 0 2px rgba(76,154,255,.2)}}
+.toolbar select{{border:1px solid #dfe1e6;border-radius:3px;padding:5px 10px;font-size:12px;color:#172b4d;background:#fff;outline:none;cursor:pointer}}
+.toolbar select:focus{{border-color:#4c9aff}}
+.toolbar .sep{{width:1px;height:24px;background:#dfe1e6}}
+.toolbar .count{{margin-left:auto;font-size:12px;color:#6b778c}}
+.btn-clear{{border:1px solid #dfe1e6;border-radius:3px;padding:5px 10px;font-size:12px;background:#fff;cursor:pointer;color:#6b778c}}
+.btn-clear:hover{{background:#f4f5f7}}
+
+/* ── table ── */
+.tbl-wrap{{background:#fff;border:1px solid #dfe1e6;border-radius:4px;overflow:hidden}}
+table{{width:100%;border-collapse:collapse}}
+thead tr{{background:#f4f5f7;border-bottom:2px solid #dfe1e6}}
+th{{padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#6b778c;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}}
+td{{padding:8px 12px;border-bottom:1px solid #f4f5f7;vertical-align:top;font-size:12px}}
+tbody tr:last-child td{{border-bottom:none}}
+tbody tr:hover td{{background:#f8f9ff}}
+.col-cat{{width:14%}}
+.col-src{{width:22%}}
+.col-url{{width:30%}}
+.col-ctx{{width:24%}}
+.col-err{{width:10%}}
+
+.cat-pill{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#ebecf0;color:#172b4d}}
+.src-link{{color:#0052cc;font-size:11px;word-break:break-all}}
+.broken-url{{font-family:'SFMono-Regular',Consolas,monospace;font-size:11px;color:#de350b;word-break:break-all}}
+.ctx-text{{color:#6b778c;font-size:11px;line-height:1.4}}
+
+.badge{{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;white-space:nowrap}}
+.e404{{background:#ffebe6;color:#de350b}}
+.econn{{background:#fff0b3;color:#974f0c}}
+.essl{{background:#e3fcef;color:#006644}}
+.etimeout{{background:#e6f0ff;color:#0052cc}}
+.einvalid{{background:#f4f5f7;color:#6b778c}}
+.eother{{background:#f4f5f7;color:#6b778c}}
+
+/* ── empty state ── */
+.empty{{text-align:center;padding:60px 20px;color:#6b778c}}
+.empty .ico{{font-size:40px;margin-bottom:12px}}
+.empty p{{font-size:14px}}
+
+/* ── footer ── */
+.footer{{text-align:center;color:#6b778c;font-size:11px;margin-top:24px;padding-bottom:24px}}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔗 Broken Links Report</h1>
-        <div class="timestamp">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
 
-        <div class="summary">
-            <h2>📊 Summary</h2>
-            <div style="display: flex; gap: 30px; align-items: flex-start;">
-                <div style="flex: 0 0 auto;">
-                    <p><strong>Total Broken Links:</strong> {len(broken_links)}</p>
-                    <p><strong>Categories Found:</strong> {len(by_category)}</p>
-                </div>
-                <div style="flex: 1;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #6B46C1; color: white;">
-                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Category</th>
-                                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 150px;">Broken Links</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-"""
+<div class="topbar">
+  <div class="topbar-logo">Sonatype <span>&bull;</span> Documentation Health</div>
+  <div class="topbar-meta">Generated {scan_ts}</div>
+</div>
 
-        # Add category summary rows
-        for category in sorted(by_category.keys()):
-            count = len(by_category[category])
-            display_cat = CategoryExtractor.get_display_category(category)
-            html_content += f"""
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 10px; border: 1px solid #ddd;">{display_cat}</td>
-                                <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: 600; color: #dc3545;">{count}</td>
-                            </tr>
-"""
+<div class="page">
 
-        html_content += """
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-"""
-
-        # Add each category
-        for category in sorted(by_category.keys()):
-            links = by_category[category]
-            display_cat = CategoryExtractor.get_display_category(category)
-
-            html_content += f"""
-        <div class="category">
-            <div class="category-header">
-                {display_cat}
-                <span class="category-count">{len(links)} links</span>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 25%">Source Page</th>
-                        <th style="width: 25%">Broken Link</th>
-                        <th style="width: 35%">Context</th>
-                        <th style="width: 15%">Error</th>
-                    </tr>
-                </thead>
-                <tbody>
-"""
-
-            for link in links:
-                source_short = link['source'].replace('https://help.sonatype.com/en/', '').replace('.html', '')
-                if len(source_short) > 40:
-                    source_short = source_short[:37] + '...'
-
-                # Don't truncate broken links - show full URL
-                broken_short = link['url']
-
-                context = link.get('context', '(no context)')
-                if len(context) > 150:
-                    context = context[:147] + '...'
-
-                error_type = link['error']
-                if 'HTTP 404' in error_type:
-                    error_display = '404 Not Found'
-                elif 'Connection Failed' in error_type:
-                    error_display = 'Connection Failed'
-                else:
-                    error_display = error_type[:20]
-
-                html_content += f"""
-                    <tr>
-                        <td><a href="{link['source']}" class="source-link" target="_blank" title="{link['source']}">{source_short}</a></td>
-                        <td><span class="broken-link" title="{link['url']}">{broken_short}</span></td>
-                        <td><span class="context">{context}</span></td>
-                        <td><span class="error-badge">{error_display}</span></td>
-                    </tr>
-"""
-
-            html_content += """
-                </tbody>
-            </table>
-        </div>
-"""
-
-        html_content += """
-        <div class="logo">Sonatype Documentation Health Check</div>
+  <div class="page-heading">
+    <div>
+      <h1>Broken Link Checker Report</h1>
+      <div class="page-sub">Scanned: <a href="{base_url}" target="_blank">{base_url}</a></div>
     </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card red">
+      <div class="val" id="visibleCount">{total_broken}</div>
+      <div class="lbl">Showing</div>
+    </div>
+    <div class="stat-card green">
+      <div class="val">{total_broken}</div>
+      <div class="lbl">Total Broken</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="val">{total_cats}</div>
+      <div class="lbl">Categories</div>
+    </div>
+    <div class="stat-card grey">
+      <div class="val">{scan_ts}</div>
+      <div class="lbl">Scan Date</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="searchBox" placeholder="Search URL, source or context…" oninput="applyFilters()">
+    <div class="sep"></div>
+    <select id="catFilter" onchange="applyFilters()">
+      <option value="">All Categories</option>
+    </select>
+    <select id="errFilter" onchange="applyFilters()">
+      <option value="">All Errors</option>
+      <option value="404">404</option>
+      <option value="Connection">Connection</option>
+      <option value="Timeout">Timeout</option>
+      <option value="SSL">SSL</option>
+      <option value="Invalid URL">Invalid URL</option>
+    </select>
+    <button class="btn-clear" onclick="clearFilters()">Clear</button>
+    <div class="count" id="countLabel">{total_broken} results</div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-cat">Category</th>
+          <th class="col-src">Source Page</th>
+          <th class="col-url">Broken URL</th>
+          <th class="col-ctx">Context</th>
+          <th class="col-err">Error</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty" id="emptyState" style="display:none">
+      <div class="ico">🔍</div>
+      <p>No results match your filters.</p>
+    </div>
+  </div>
+
+  <div class="footer">Sonatype Documentation Health Check &mdash; {scan_ts}</div>
+</div>
+
+<script>
+const ROWS = {rows_json};
+const CATS = {cats_json};
+
+// Populate category filter
+const catSel = document.getElementById('catFilter');
+CATS.forEach(c => {{
+  const o = document.createElement('option');
+  o.value = c; o.textContent = c;
+  catSel.appendChild(o);
+}});
+
+function renderRow(r) {{
+  const srcShort = r.src.replace(/https?:\\/\\/[^/]+/, '').replace(/\\.html$/, '') || r.src;
+  return `<tr data-cat="${{r.cat}}" data-err="${{r.err}}">
+    <td><span class="cat-pill">${{r.cat}}</span></td>
+    <td><a class="src-link" href="${{r.src}}" target="_blank" title="${{r.src}}">${{srcShort}}</a></td>
+    <td><span class="broken-url" title="${{r.url}}">${{r.url}}</span></td>
+    <td><span class="ctx-text">${{r.ctx || '<em style=\\"color:#c1c7d0\\">—</em>'}}</span></td>
+    <td><span class="badge ${{r.ecls}}">${{r.err}}</span></td>
+  </tr>`;
+}}
+
+function applyFilters() {{
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  const err = document.getElementById('errFilter').value;
+
+  let visible = 0;
+  const body = document.getElementById('tableBody');
+  body.innerHTML = '';
+  const frag = document.createDocumentFragment();
+
+  ROWS.forEach(r => {{
+    if (cat && r.cat !== cat) return;
+    if (err && r.err !== err) return;
+    if (q && !r.url.toLowerCase().includes(q) && !r.src.toLowerCase().includes(q) && !r.ctx.toLowerCase().includes(q)) return;
+    const tr = document.createElement('tbody');
+    tr.innerHTML = renderRow(r);
+    frag.appendChild(tr.firstChild);
+    visible++;
+  }});
+
+  body.appendChild(frag);
+  document.getElementById('visibleCount').textContent = visible;
+  document.getElementById('countLabel').textContent = visible + ' result' + (visible !== 1 ? 's' : '');
+  document.getElementById('emptyState').style.display = visible === 0 ? 'block' : 'none';
+}}
+
+function clearFilters() {{
+  document.getElementById('searchBox').value = '';
+  document.getElementById('catFilter').value = '';
+  document.getElementById('errFilter').value = '';
+  applyFilters();
+}}
+
+applyFilters();
+</script>
 </body>
 </html>
 """
@@ -1192,7 +1215,7 @@ class SlackNotifier:
         self.config = config
         self.logger = logger
 
-    def send_report_notification(self, broken_links: List[Dict], public_url: str, by_category: Dict[str, List[Dict]]):
+    def send_report_notification(self, broken_links: List[Dict], public_url: str, by_category: Dict[str, List[Dict]], total_checked: int = 0):
         """Send Slack notification with report summary and public URL."""
         if not self.config.enable_slack or not self.config.slack_webhook:
             self.logger.info("Slack notifications disabled or webhook not configured")
@@ -1200,23 +1223,33 @@ class SlackNotifier:
 
         try:
             total_broken = len(broken_links)
+            scan_date = datetime.now().strftime('%Y-%m-%d')
 
-            # Build category table
-            category_table = "```\n"
-            category_table += f"{'Category':<40} {'Count':>6}\n"
-            category_table += f"{'-' * 40} {'-' * 6}\n"
-
+            # Category bullet list with emojis
+            cat_lines = ""
             for category in sorted(by_category.keys()):
                 count = len(by_category[category])
-                # Truncate long category names
-                cat_name = category[:40] if len(category) <= 40 else category[:37] + "..."
-                category_table += f"{cat_name:<40} {count:>6}\n"
+                cat_lines += f"• {category}: *{count}*\n"
 
-            category_table += f"{'-' * 40} {'-' * 6}\n"
-            category_table += f"{'TOTAL':<40} {total_broken:>6}\n"
-            category_table += "```"
+            # Key issues — top error types
+            from collections import Counter
+            error_counts = Counter()
+            for lnk in broken_links:
+                err = lnk.get('error', '')
+                if '404' in err:
+                    error_counts['404 Not Found'] += 1
+                elif 'Connection' in err:
+                    error_counts['Connection Failed'] += 1
+                elif 'SSL' in err:
+                    error_counts['SSL Error'] += 1
+                elif 'Timeout' in err:
+                    error_counts['Timeout'] += 1
+                else:
+                    error_counts[err[:30]] += 1
+            top_issues = ', '.join(f"{k} ({v})" for k, v in error_counts.most_common(3))
 
-            # Create Slack message
+            checked_str = f"{total_checked:,}" if total_checked else "—"
+
             message = {
                 "channel": self.config.slack_channel if self.config.slack_channel else None,
                 "blocks": [
@@ -1224,36 +1257,63 @@ class SlackNotifier:
                         "type": "header",
                         "text": {
                             "type": "plain_text",
-                            "text": "Broken Links Report",
-                            "emoji": False
+                            "text": "🔗 Broken Links Scan Results",
+                            "emoji": True
                         }
                     },
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "Hi Team,\n\nBelow are the broken links identified across the help site."
+                            "text": (
+                                "Hi Team! :wave:\n\n"
+                                "Just sharing this week's broken links scan results. "
+                                "Whenever you get a chance, could you take a quick look at the links in your respective areas? "
+                                "No rush — just something to keep on the radar as we continue to keep our docs in great shape."
+                            )
+                        }
+                    },
+                    {"type": "divider"},
+                    {
+                        "type": "section",
+                        "fields": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f":bar_chart: *Links Checked*\n{checked_str}"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": f":x: *Broken Found*\n{total_broken}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*By Category:*\n{cat_lines.strip()}"
                         }
                     },
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f"*Summary:* Found *{total_broken}* broken links across *{len(by_category)}* categories"
+                            "text": f":warning: *Key Issues:* {top_issues}"
                         }
                     },
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": category_table
+                            "text": f":page_facing_up: *Full Report:* <{public_url}|View detailed report>"
                         }
                     },
+                    {"type": "divider"},
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f"<{public_url}|*View Full Report*>"
+                            "text": "Thanks so much for all you do! Feel free to reach out if you have any questions or need help investigating anything. :heart:"
                         }
                     },
                     {
@@ -1261,7 +1321,7 @@ class SlackNotifier:
                         "elements": [
                             {
                                 "type": "mrkdwn",
-                                "text": f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                "text": f":calendar: Scan date: {scan_date}"
                             }
                         ]
                     }
@@ -1336,6 +1396,7 @@ class EnhancedBrokenLinkMonitor:
             self.logger.info(f"\n🔍 Checking links with strict validation ({self.config.parallel_workers} workers)...")
 
             links_to_check = []
+            seen_links = set()  # dedupe across all source pages
             for source_url, links_dict in all_links.items():
                 for link, context in links_dict.items():
                     # Skip excluded patterns
@@ -1345,7 +1406,12 @@ class EnhancedBrokenLinkMonitor:
                             excluded = True
                             break
 
-                    if not excluded and link not in self.link_checker.checked_urls:
+                    if excluded:
+                        if link not in seen_links:
+                            self.logger.info(f"EXCLUDED: {link}")
+                            seen_links.add(link)
+                    elif link not in seen_links and link not in self.link_checker.checked_urls:
+                        seen_links.add(link)
                         links_to_check.append((link, source_url, context))
 
                     if self.config.max_links > 0 and len(links_to_check) >= self.config.max_links:
@@ -1393,10 +1459,24 @@ class EnhancedBrokenLinkMonitor:
                     except Exception as e:
                         self.logger.error(f"Error checking {link}: {e}")
 
+        # Clean up session connections to free file descriptors
+        self.link_checker.session.close()
+        self.logger.info("✓ Closed HTTP session to free resources")
+
         return all_broken, all_false_positives
 
     def run_check(self):
         """Run enhanced check with categorization."""
+        # Increase system limits for file descriptors to handle many connections
+        try:
+            import resource
+            soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+            new_limit = min(hard, 65536)  # Increase to max allowed
+            resource.setrlimit(resource.RLIMIT_NOFILE, (new_limit, hard))
+            self.logger.info(f"Increased file descriptor limit from {soft} to {new_limit}")
+        except Exception as e:
+            self.logger.warning(f"Could not increase file descriptor limit: {e}")
+
         self.logger.info("="*70)
         self.logger.info("🚀 Enhanced Broken Link Checker with Categories")
         self.logger.info("="*70)
@@ -1420,6 +1500,14 @@ class EnhancedBrokenLinkMonitor:
         self.logger.info(f"Time elapsed: {elapsed:.1f} seconds")
         self.logger.info("="*70)
 
+        # Strip any excluded-pattern URLs from broken list before reporting
+        if self.config.exclude_patterns:
+            import re as _re
+            truly_broken = [
+                lnk for lnk in truly_broken
+                if not any(_re.search(pat, lnk['url']) for pat in self.config.exclude_patterns)
+            ]
+
         # Generate categorized CSV and HTML reports
         if truly_broken:
             base_url = self.config.docs_urls[0] if self.config.docs_urls else ""
@@ -1440,7 +1528,7 @@ class EnhancedBrokenLinkMonitor:
 
             # Send Slack notification with public URL
             if public_url:
-                self.slack_notifier.send_report_notification(truly_broken, public_url, by_category)
+                self.slack_notifier.send_report_notification(truly_broken, public_url, by_category, total_checked)
 
             return csv_file, html_file, by_category, public_url
 
