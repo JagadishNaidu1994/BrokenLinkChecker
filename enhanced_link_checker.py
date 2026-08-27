@@ -1295,14 +1295,13 @@ class SlackNotifier:
             total_broken = len(broken_links)
             scan_date = datetime.now().strftime('%Y-%m-%d')
 
-            # Category bullet list with emojis
+            # Category bullet list (no emojis)
             cat_lines = ""
             for category in sorted(by_category.keys()):
                 count = len(by_category[category])
-                emoji = self._get_category_emoji(category)
                 # Simplify category names for cleaner display
                 cat_name = category.replace('Sonatype ', '').replace('Nexus Repository', 'Nexus Repository')
-                cat_lines += f"• {emoji} {cat_name}: {count}\n"
+                cat_lines += f"• {cat_name}: {count}\n"
 
             # Key issues — identify patterns in broken links
             from collections import Counter
@@ -1353,7 +1352,7 @@ class SlackNotifier:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f":bar_chart: {checked_str} links checked | {total_broken} broken found"
+                            "text": f"{checked_str} links checked | {total_broken} broken found"
                         }
                     },
                     {
@@ -1367,14 +1366,14 @@ class SlackNotifier:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f":page_facing_up: *Full Report:* <{public_url}|View detailed report>"
+                            "text": f"<{public_url}|View detailed report>"
                         }
                     },
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f":warning: *Key Issues:* {key_issues}"
+                            "text": f"*Key Issues:* {key_issues}"
                         }
                     },
                     {"type": "divider"},
@@ -1390,7 +1389,7 @@ class SlackNotifier:
                         "elements": [
                             {
                                 "type": "mrkdwn",
-                                "text": f":calendar: Scan date: {scan_date}"
+                                "text": f"Scan date: {scan_date}"
                             }
                         ]
                     }
