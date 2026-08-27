@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack Notification Preview - Broken Links Scan</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #1a1d21;
+            padding: 40px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .slack-container {
+            background: #323639;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* Slack Header Block */
+        .slack-header {
+            background: #323639;
+            padding: 16px 20px;
+            border-bottom: 1px solid #4a4d52;
+        }
+
+        .slack-header-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Slack Section */
+        .slack-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid #4a4d52;
+            color: #d1d2d3;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .slack-section:last-child {
+            border-bottom: none;
+        }
+
+        /* Divider */
+        .slack-divider {
+            height: 1px;
+            background: #4a4d52;
+            margin: 0;
+        }
+
+        /* Fields - two column layout */
+        .slack-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .slack-field {
+            padding: 0;
+        }
+
+        .slack-field-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #d1d2d3;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .slack-field-value {
+            font-size: 15px;
+            color: #d1d2d3;
+            font-weight: 400;
+        }
+
+        /* Category List */
+        .slack-category-list {
+            margin: 8px 0;
+        }
+
+        .slack-category-item {
+            font-size: 15px;
+            margin: 4px 0;
+            color: #d1d2d3;
+        }
+
+        /* Link */
+        .slack-link {
+            color: #1d9bf0;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .slack-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Bold in mrkdwn */
+        .slack-bold {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* Context block */
+        .slack-context {
+            padding: 12px 20px;
+            color: #ababad;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Emoji */
+        .emoji {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slack-container">
+    <!-- Header Block -->
+    <div class="slack-header">
+        <div class="slack-header-title">
+            <span class="emoji">🔗</span>
+            Broken Links Scan Results
+        </div>
+    </div>
+
+    <!-- Section: Introduction -->
+    <div class="slack-section">
+        Hi Team! 👋<br><br>
+        Just sharing this week's broken links scan results. Whenever you get a chance, could you take a quick look at the links in your respective areas? No rush — just something to keep on the radar as we continue to keep our docs in great shape.
+    </div>
+
+    <div class="slack-divider"></div>
+
+    <!-- Section: Stats (Fields) -->
+    <div class="slack-section">
+        <div class="slack-fields">
+            <div class="slack-field">
+                <div class="slack-field-label">
+                    <span class="emoji">📊</span>
+                    <span class="slack-bold">Links Checked</span>
+                </div>
+                <div class="slack-field-value">6,001</div>
+            </div>
+            <div class="slack-field">
+                <div class="slack-field-label">
+                    <span class="emoji">❌</span>
+                    <span class="slack-bold">Broken Found</span>
+                </div>
+                <div class="slack-field-value">24</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section: By Category -->
+    <div class="slack-section">
+        <div class="slack-bold">By Category:</div>
+        <div class="slack-category-list">
+            <div class="slack-category-item">• <span class="slack-bold">Sonatype Nexus Repository:</span> 17</div>
+            <div class="slack-category-item">• <span class="slack-bold">Sonatype Lifecycle:</span> 3</div>
+            <div class="slack-category-item">• <span class="slack-bold">Sonatype Developer:</span> 2</div>
+            <div class="slack-category-item">• <span class="slack-bold">Sonatype IQ Server:</span> 2</div>
+        </div>
+    </div>
+
+    <!-- Section: Key Issues -->
+    <div class="slack-section">
+        <span class="emoji">⚠️</span>
+        <span class="slack-bold">Key Issues:</span>
+        404 Not Found (17), Connection Failed (3), Timeout (3)
+    </div>
+
+    <!-- Section: Report Link -->
+    <div class="slack-section">
+        <span class="emoji">📄</span>
+        <span class="slack-bold">Full Report:</span>
+        <a href="https://sonatype-docs.github.io/broken-links-reports/" class="slack-link" target="_blank">View detailed report</a>
+    </div>
+
+    <div class="slack-divider"></div>
+
+    <!-- Section: Closing -->
+    <div class="slack-section">
+        Thanks so much for all you do! Feel free to reach out if you have any questions or need help investigating anything. ❤️
+    </div>
+
+    <!-- Context Block -->
+    <div class="slack-context">
+        <span class="emoji">📅</span>
+        Scan date: 2026-08-24
+    </div>
+</div>
+
+<!-- Note about actual Slack rendering -->
+<div style="max-width: 600px; margin: 30px auto; padding: 20px; background: #2d333b; border-radius: 8px; color: #d1d2d3; font-size: 14px; line-height: 1.6;">
+    <div style="font-weight: 700; color: #fff; margin-bottom: 10px;">📝 Note:</div>
+    <div>This is a visual preview of how the Slack notification will appear. The actual message will be sent using Slack's Block Kit format with proper styling, emojis, and interactive elements.</div>
+    <br>
+    <div style="font-weight: 700; color: #fff; margin-bottom: 10px;">✨ Features:</div>
+    <ul style="margin: 0; padding-left: 20px;">
+        <li>Professional formatting with Slack Block Kit</li>
+        <li>Category-wise breakdown with counts</li>
+        <li>Top 3 error types highlighted</li>
+        <li>Direct link to full HTML report</li>
+        <li>Automatic weekly notifications (configurable)</li>
+    </ul>
+</div>
+
+</body>
+</html>

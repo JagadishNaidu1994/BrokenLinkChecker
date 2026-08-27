@@ -1299,24 +1299,37 @@ class SlackNotifier:
             cat_lines = ""
             for category in sorted(by_category.keys()):
                 count = len(by_category[category])
-                cat_lines += f"• {category}: *{count}*\n"
+                emoji = self._get_category_emoji(category)
+                # Simplify category names for cleaner display
+                cat_name = category.replace('Sonatype ', '').replace('Nexus Repository', 'Nexus Repository')
+                cat_lines += f"• {emoji} {cat_name}: {count}\n"
 
-            # Key issues — top error types
+            # Key issues — identify patterns in broken links
             from collections import Counter
-            error_counts = Counter()
+            domain_counts = Counter()
+
             for lnk in broken_links:
-                err = lnk.get('error', '')
-                if '404' in err:
-                    error_counts['404 Not Found'] += 1
-                elif 'Connection' in err:
-                    error_counts['Connection Failed'] += 1
-                elif 'SSL' in err:
-                    error_counts['SSL Error'] += 1
-                elif 'Timeout' in err:
-                    error_counts['Timeout'] += 1
+                url = lnk.get('url', '')
+
+                # Track which domains/paths have issues
+                if 'jenkins' in url.lower() or 'jfrog' in url.lower():
+                    domain_counts['Jenkins & JFrog docs (404s)'] += 1
+                elif 'support.sonatype.com' in url:
+                    domain_counts['Sonatype Support articles'] += 1
+                elif 'npmjs.com' in url:
+                    domain_counts['npm documentation'] += 1
+                elif 'github.com' in url:
+                    domain_counts['GitHub references'] += 1
+                elif 'http://https://' in url:
+                    domain_counts['Malformed URLs (double protocol)'] += 1
                 else:
-                    error_counts[err[:30]] += 1
-            top_issues = ', '.join(f"{k} ({v})" for k, v in error_counts.most_common(3))
+                    domain_counts['Other broken links'] += 1
+
+            # Get top issue domains
+            if domain_counts:
+                key_issues = ', '.join(f"{k}" for k, v in domain_counts.most_common(3))
+            else:
+                key_issues = "No specific patterns detected"
 
             checked_str = f"{total_checked:,}" if total_checked else "—"
 
@@ -1324,19 +1337,11 @@ class SlackNotifier:
                 "channel": self.config.slack_channel if self.config.slack_channel else None,
                 "blocks": [
                     {
-                        "type": "header",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "🔗 Broken Links Scan Results",
-                            "emoji": True
-                        }
-                    },
-                    {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
                             "text": (
-                                "Hi Team! :wave:\n\n"
+                                "Hi Team,\n\n"
                                 "Just sharing this week's broken links scan results. "
                                 "Whenever you get a chance, could you take a quick look at the links in your respective areas? "
                                 "No rush — just something to keep on the radar as we continue to keep our docs in great shape."
@@ -1346,16 +1351,10 @@ class SlackNotifier:
                     {"type": "divider"},
                     {
                         "type": "section",
-                        "fields": [
-                            {
-                                "type": "mrkdwn",
-                                "text": f":bar_chart: *Links Checked*\n{checked_str}"
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": f":x: *Broken Found*\n{total_broken}"
-                            }
-                        ]
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f":bar_chart: {checked_str} links checked | {total_broken} broken found"
+                        }
                     },
                     {
                         "type": "section",
@@ -1368,14 +1367,14 @@ class SlackNotifier:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f":warning: *Key Issues:* {top_issues}"
+                            "text": f":page_facing_up: *Full Report:* <{public_url}|View detailed report>"
                         }
                     },
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f":page_facing_up: *Full Report:* <{public_url}|View detailed report>"
+                            "text": f":warning: *Key Issues:* {key_issues}"
                         }
                     },
                     {"type": "divider"},
@@ -1383,7 +1382,7 @@ class SlackNotifier:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "Thanks so much for all you do! Feel free to reach out if you have any questions or need help investigating anything. :heart:"
+                            "text": "Thanks so much for all you do! Feel free to reach out if you have any questions or need help investigating anything."
                         }
                     },
                     {
