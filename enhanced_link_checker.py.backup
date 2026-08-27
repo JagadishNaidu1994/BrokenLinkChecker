@@ -797,156 +797,86 @@ class EnhancedReportGenerator:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Broken Links Report — {scan_ts}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* Sonatype Design System - Radix UI Colors */
-:root {{
-  /* Blue (Primary Brand) */
-  --blue-1: #fbfdff;
-  --blue-2: #f4f9ff;
-  --blue-3: #e6f4ff;
-  --blue-4: #d6efff;
-  --blue-5: #c2e5ff;
-  --blue-6: #a9d8ff;
-  --blue-7: #86c6f8;
-  --blue-8: #49a8f5;
-  --blue-9: #1d9bf0;
-  --blue-10: #0091e8;
-  --blue-11: #006adc;
-  --blue-12: #003366;
-
-  /* Tomato (Accent Brand) */
-  --tomato-1: #fffcfb;
-  --tomato-2: #fff8f6;
-  --tomato-3: #fff0ec;
-  --tomato-4: #ffe6e0;
-  --tomato-5: #fdd8cf;
-  --tomato-6: #f5c5b6;
-  --tomato-7: #ecaa96;
-  --tomato-8: #e0856a;
-  --tomato-9: #d95030;
-  --tomato-10: #cd3d1d;
-  --tomato-11: #be2c10;
-  --tomato-12: #5c1c0b;
-
-  /* Gray Scale */
-  --gray-1: #fcfcfd;
-  --gray-2: #f9f9fb;
-  --gray-3: #f0f0f3;
-  --gray-4: #e8e8ec;
-  --gray-5: #e0e1e6;
-  --gray-6: #d9d9e0;
-  --gray-7: #cecede;
-  --gray-8: #bbbbc6;
-  --gray-9: #8b8b9a;
-  --gray-10: #6e6e7c;
-  --gray-11: #4a4a56;
-  --gray-12: #1c1c24;
-
-  /* Status Colors */
-  --red-9: #e5484d;
-  --red-11: #cd2b31;
-  --green-9: #30a46c;
-  --green-11: #18794e;
-  --orange-9: #f76b15;
-  --orange-11: #bd4b00;
-  --yellow-9: #ffaa33;
-  --yellow-11: #c68520;
-}}
-
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:var(--gray-2);color:var(--gray-12);min-height:100vh;line-height:1.5}}
-a{{color:var(--blue-11);text-decoration:none;font-weight:500}}a:hover{{color:var(--blue-10);text-decoration:underline}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#f4f5f7;color:#172b4d;min-height:100vh}}
+a{{color:#0052cc;text-decoration:none}}a:hover{{text-decoration:underline}}
 
 /* ── top bar ── */
-.topbar{{background:linear-gradient(135deg,var(--blue-11) 0%,#0052a3 100%);border-bottom:3px solid var(--tomato-9);padding:0 32px;display:flex;align-items:center;height:64px;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.08)}}
-.topbar-logo{{font-weight:700;font-size:16px;color:#fff;display:flex;align-items:center;gap:8px;letter-spacing:-0.02em}}
-.topbar-logo span{{color:var(--tomato-9);font-size:20px}}
-.topbar-meta{{color:rgba(255,255,255,0.9);font-size:12px;margin-left:auto;font-weight:500}}
+.topbar{{background:#fff;border-bottom:1px solid #dfe1e6;padding:0 24px;display:flex;align-items:center;height:48px;gap:16px;position:sticky;top:0;z-index:100}}
+.topbar-logo{{font-weight:700;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:6px}}
+.topbar-logo span{{color:#e34234}}
+.topbar-meta{{color:#6b778c;font-size:12px;margin-left:auto}}
 
 /* ── layout ── */
-.page{{max-width:1400px;margin:0 auto;padding:24px 32px}}
+.page{{max-width:1320px;margin:0 auto;padding:20px 24px}}
 
 /* ── stat cards ── */
-.stats{{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}}
-.stat-card{{background:#fff;border:1px solid var(--gray-4);border-radius:8px;padding:16px 24px;min-width:140px;flex:1;box-shadow:0 1px 3px rgba(0,0,0,0.04);transition:box-shadow 0.2s}}
-.stat-card:hover{{box-shadow:0 4px 12px rgba(0,0,0,0.08)}}
-.stat-card .val{{font-size:32px;font-weight:700;line-height:1.2;letter-spacing:-0.02em}}
-.stat-card .lbl{{font-size:11px;color:var(--gray-10);margin-top:6px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600}}
-.stat-card.red .val{{color:var(--red-11)}}
-.stat-card.green .val{{color:var(--green-11)}}
-.stat-card.blue .val{{color:var(--blue-11)}}
-.stat-card.tomato{{border-left:4px solid var(--tomato-9)}}
-.stat-card.tomato .val{{color:var(--tomato-11)}}
+.stats{{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}}
+.stat-card{{background:#fff;border:1px solid #dfe1e6;border-radius:4px;padding:12px 20px;min-width:120px;flex:1}}
+.stat-card .val{{font-size:28px;font-weight:700;line-height:1}}
+.stat-card .lbl{{font-size:11px;color:#6b778c;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}}
+.stat-card.red .val{{color:#de350b}}
+.stat-card.green .val{{color:#00875a}}
+.stat-card.blue .val{{color:#0052cc}}
+.stat-card.grey .val{{font-size:13px;font-weight:600;color:#172b4d;padding-top:4px}}
 
 /* ── page heading ── */
-.page-heading{{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}}
-.page-heading h1{{font-size:28px;font-weight:700;color:var(--gray-12);letter-spacing:-0.03em}}
-.page-sub{{font-size:13px;color:var(--gray-10);margin-top:6px}}
+.page-heading{{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}}
+.page-heading h1{{font-size:20px;font-weight:700;color:#172b4d}}
+.page-sub{{font-size:12px;color:#6b778c;margin-top:3px}}
 
 /* ── toolbar ── */
-.toolbar{{background:#fff;border:1px solid var(--gray-4);border-radius:8px;padding:12px 16px;display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}
-.toolbar input{{border:1px solid var(--gray-6);border-radius:6px;padding:8px 14px;font-size:13px;width:280px;outline:none;color:var(--gray-12);transition:all 0.2s}}
-.toolbar input:focus{{border-color:var(--blue-8);box-shadow:0 0 0 3px rgba(29,155,240,0.15)}}
-.toolbar select{{border:1px solid var(--gray-6);border-radius:6px;padding:8px 14px;font-size:13px;color:var(--gray-12);background:#fff;outline:none;cursor:pointer;transition:all 0.2s}}
-.toolbar select:focus{{border-color:var(--blue-8);box-shadow:0 0 0 3px rgba(29,155,240,0.15)}}
-.toolbar .sep{{width:1px;height:28px;background:var(--gray-4)}}
-.toolbar .count{{margin-left:auto;font-size:13px;color:var(--gray-10);font-weight:500}}
-.btn-clear{{border:1px solid var(--gray-6);border-radius:6px;padding:8px 16px;font-size:13px;background:#fff;cursor:pointer;color:var(--gray-11);font-weight:500;transition:all 0.2s}}
-.btn-clear:hover{{background:var(--gray-3);border-color:var(--gray-7)}}
+.toolbar{{background:#fff;border:1px solid #dfe1e6;border-radius:4px;padding:10px 14px;display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}}
+.toolbar input{{border:1px solid #dfe1e6;border-radius:3px;padding:5px 10px;font-size:12px;width:260px;outline:none;color:#172b4d}}
+.toolbar input:focus{{border-color:#4c9aff;box-shadow:0 0 0 2px rgba(76,154,255,.2)}}
+.toolbar select{{border:1px solid #dfe1e6;border-radius:3px;padding:5px 10px;font-size:12px;color:#172b4d;background:#fff;outline:none;cursor:pointer}}
+.toolbar select:focus{{border-color:#4c9aff}}
+.toolbar .sep{{width:1px;height:24px;background:#dfe1e6}}
+.toolbar .count{{margin-left:auto;font-size:12px;color:#6b778c}}
+.btn-clear{{border:1px solid #dfe1e6;border-radius:3px;padding:5px 10px;font-size:12px;background:#fff;cursor:pointer;color:#6b778c}}
+.btn-clear:hover{{background:#f4f5f7}}
 
 /* ── table ── */
-.tbl-wrap{{background:#fff;border:1px solid var(--gray-4);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}
+.tbl-wrap{{background:#fff;border:1px solid #dfe1e6;border-radius:4px;overflow:hidden}}
 table{{width:100%;border-collapse:collapse}}
-thead tr{{background:linear-gradient(to bottom,var(--gray-1),var(--gray-2));border-bottom:2px solid var(--gray-5)}}
-th{{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--gray-11);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap}}
-td{{padding:10px 14px;border-bottom:1px solid var(--gray-3);vertical-align:top;font-size:13px}}
+thead tr{{background:#f4f5f7;border-bottom:2px solid #dfe1e6}}
+th{{padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#6b778c;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}}
+td{{padding:8px 12px;border-bottom:1px solid #f4f5f7;vertical-align:top;font-size:12px}}
 tbody tr:last-child td{{border-bottom:none}}
-tbody tr:hover td{{background:var(--blue-2)}}
+tbody tr:hover td{{background:#f8f9ff}}
 .col-cat{{width:14%}}
-.col-src{{width:20%}}
-.col-url{{width:32%}}
+.col-src{{width:22%}}
+.col-url{{width:30%}}
 .col-ctx{{width:24%}}
 .col-err{{width:10%}}
 
-.cat-pill{{display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:600;background:linear-gradient(135deg,var(--blue-3),var(--blue-2));color:var(--blue-12);border:1px solid var(--blue-4)}}
-.src-link{{color:var(--blue-11);font-size:12px;word-break:break-all;font-weight:500}}
-.broken-url{{font-family:'SF Mono',Consolas,Monaco,monospace;font-size:12px;color:var(--red-11);word-break:break-all;background:var(--gray-1);padding:2px 6px;border-radius:4px;display:inline-block}}
-.ctx-text{{color:var(--gray-10);font-size:12px;line-height:1.5}}
+.cat-pill{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#ebecf0;color:#172b4d}}
+.src-link{{color:#0052cc;font-size:11px;word-break:break-all}}
+.broken-url{{font-family:'SFMono-Regular',Consolas,monospace;font-size:11px;color:#de350b;word-break:break-all}}
+.ctx-text{{color:#6b778c;font-size:11px;line-height:1.4}}
 
-.badge{{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:0.3px}}
-.e404{{background:linear-gradient(135deg,#fee2e2,#feecea);color:var(--red-11);border:1px solid #fecaca}}
-.econn{{background:linear-gradient(135deg,#fef3c7,#fef0d7);color:var(--orange-11);border:1px solid #fed7aa}}
-.essl{{background:linear-gradient(135deg,#d1fae5,#d4f5e3);color:var(--green-11);border:1px solid #a7f3d0}}
-.etimeout{{background:linear-gradient(135deg,#dbeafe,#e0f2fe);color:var(--blue-11);border:1px solid #bfdbfe}}
-.einvalid{{background:linear-gradient(135deg,var(--gray-2),var(--gray-1));color:var(--gray-11);border:1px solid var(--gray-4)}}
-.eother{{background:linear-gradient(135deg,var(--gray-2),var(--gray-1));color:var(--gray-11);border:1px solid var(--gray-4)}}
+.badge{{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;white-space:nowrap}}
+.e404{{background:#ffebe6;color:#de350b}}
+.econn{{background:#fff0b3;color:#974f0c}}
+.essl{{background:#e3fcef;color:#006644}}
+.etimeout{{background:#e6f0ff;color:#0052cc}}
+.einvalid{{background:#f4f5f7;color:#6b778c}}
+.eother{{background:#f4f5f7;color:#6b778c}}
 
 /* ── empty state ── */
-.empty{{text-align:center;padding:80px 20px;color:var(--gray-10)}}
-.empty .ico{{font-size:48px;margin-bottom:16px}}
-.empty p{{font-size:15px;font-weight:500}}
+.empty{{text-align:center;padding:60px 20px;color:#6b778c}}
+.empty .ico{{font-size:40px;margin-bottom:12px}}
+.empty p{{font-size:14px}}
 
 /* ── footer ── */
-.footer{{text-align:center;color:var(--gray-10);font-size:12px;margin-top:32px;padding-bottom:32px;font-weight:500}}
-
-/* ── responsive ── */
-@media (max-width: 768px) {{
-  .page{{padding:16px}}
-  .stats{{flex-direction:column}}
-  .toolbar{{flex-direction:column;align-items:stretch}}
-  .toolbar input,.toolbar select{{width:100%}}
-  table{{font-size:11px}}
-  th,td{{padding:6px 8px}}
-}}
+.footer{{text-align:center;color:#6b778c;font-size:11px;margin-top:24px;padding-bottom:24px}}
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="topbar-logo">Sonatype <span>•</span> Documentation Health</div>
+  <div class="topbar-logo">Sonatype <span>&bull;</span> Documentation Health</div>
   <div class="topbar-meta">Generated {scan_ts}</div>
 </div>
 
@@ -964,7 +894,7 @@ tbody tr:hover td{{background:var(--blue-2)}}
       <div class="val" id="visibleCount">{total_broken}</div>
       <div class="lbl">Showing</div>
     </div>
-    <div class="stat-card tomato">
+    <div class="stat-card green">
       <div class="val">{total_broken}</div>
       <div class="lbl">Total Broken</div>
     </div>
@@ -972,8 +902,8 @@ tbody tr:hover td{{background:var(--blue-2)}}
       <div class="val">{total_cats}</div>
       <div class="lbl">Categories</div>
     </div>
-    <div class="stat-card">
-      <div class="val" style="font-size:13px;color:var(--gray-11);padding-top:8px">{scan_ts}</div>
+    <div class="stat-card grey">
+      <div class="val">{scan_ts}</div>
       <div class="lbl">Scan Date</div>
     </div>
   </div>
@@ -1031,12 +961,12 @@ CATS.forEach(c => {{
 }});
 
 function renderRow(r) {{
-  const srcShort = r.src.replace(/https?:\/\/[^/]+/, '').replace(/\.html$/, '') || r.src;
+  const srcShort = r.src.replace(/https?:\\/\\/[^/]+/, '').replace(/\\.html$/, '') || r.src;
   return `<tr data-cat="${{r.cat}}" data-err="${{r.err}}">
     <td><span class="cat-pill">${{r.cat}}</span></td>
     <td><a class="src-link" href="${{r.src}}" target="_blank" title="${{r.src}}">${{srcShort}}</a></td>
     <td><span class="broken-url" title="${{r.url}}">${{r.url}}</span></td>
-    <td><span class="ctx-text">${{r.ctx || '<em style="color:var(--gray-9)">—</em>'}}</span></td>
+    <td><span class="ctx-text">${{r.ctx || '<em style=\\"color:#c1c7d0\\">—</em>'}}</span></td>
     <td><span class="badge ${{r.ecls}}">${{r.err}}</span></td>
   </tr>`;
 }}
