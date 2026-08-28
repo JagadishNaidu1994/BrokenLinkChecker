@@ -1203,20 +1203,13 @@ tbody tr:hover td{{background:var(--blue-2)}}
       <div class="val" style="font-size:13px;color:var(--gray-11);padding-top:8px">{scan_ts}</div>
       <div class="lbl">Last Scan Date</div>
     </div>
-  </div>
-
-  <!-- Impact & Value Section -->
-  <div class="impact-section">
-    <div class="impact-title">Impact &amp; Value Delivered</div>
-    <div class="impact-grid">
-      <div class="impact-item">
-        <div class="impact-item-val">Weekly</div>
-        <div class="impact-item-lbl">Automated scans (Mon 10 AM IST)</div>
-      </div>
-      <div class="impact-item">
-        <div class="impact-item-val">{healthy_pct}%</div>
-        <div class="impact-item-lbl">Documentation link health</div>
-      </div>
+    <div class="stat-card">
+      <div class="val" style="font-size:20px;color:var(--gray-12);padding-top:4px">Weekly</div>
+      <div class="lbl">Mon 10 AM IST</div>
+    </div>
+    <div class="stat-card green">
+      <div class="val">{healthy_pct}%</div>
+      <div class="lbl">Link Health</div>
     </div>
   </div>
 
