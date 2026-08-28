@@ -1110,10 +1110,16 @@ tbody tr:hover td{{background:var(--blue-2)}}
 .insights-grid{{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}}
 .insight-card{{background:#fff;border:1px solid var(--gray-4);border-radius:8px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}
 .insight-title{{font-size:13px;font-weight:600;color:var(--gray-10);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:20px}}
-.donut-container{{position:relative;height:220px;display:flex;align-items:center;justify-content:center}}
-.donut-center{{position:absolute;text-align:center;pointer-events:none}}
+.donut-wrap{{display:flex;align-items:center;gap:24px;height:220px}}
+.donut-container{{position:relative;width:220px;height:220px;flex-shrink:0}}
+.donut-center{{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}}
 .donut-center-val{{font-size:32px;font-weight:700;color:var(--gray-12);letter-spacing:-0.02em;line-height:1}}
 .donut-center-lbl{{font-size:11px;color:var(--gray-10);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-top:4px}}
+.donut-legend{{flex:1;list-style:none;padding:0;margin:0}}
+.donut-legend-item{{display:flex;align-items:center;padding:6px 0;font-size:12px;color:var(--gray-11)}}
+.donut-legend-dot{{width:10px;height:10px;border-radius:2px;margin-right:10px;flex-shrink:0}}
+.donut-legend-name{{flex:1;font-weight:500}}
+.donut-legend-count{{font-weight:600;color:var(--gray-12);margin-left:8px}}
 .top-pages-list{{list-style:none;padding:0;margin:0}}
 .top-pages-item{{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--gray-3)}}
 .top-pages-item:last-child{{border-bottom:none}}
@@ -1184,12 +1190,8 @@ tbody tr:hover td{{background:var(--blue-2)}}
   </div>
 
   <div class="stats">
-    <div class="stat-card red">
-      <div class="val" id="visibleCount">{total_broken}</div>
-      <div class="lbl">Showing</div>
-    </div>
     <div class="stat-card tomato">
-      <div class="val">{total_broken}</div>
+      <div class="val" id="visibleCount">{total_broken}</div>
       <div class="lbl">Total Broken</div>
     </div>
     <div class="stat-card blue">
@@ -1198,7 +1200,7 @@ tbody tr:hover td{{background:var(--blue-2)}}
     </div>
     <div class="stat-card">
       <div class="val" style="font-size:13px;color:var(--gray-11);padding-top:8px">{scan_ts}</div>
-      <div class="lbl">Scan Date</div>
+      <div class="lbl">Last Scan Date</div>
     </div>
   </div>
 
@@ -1209,10 +1211,6 @@ tbody tr:hover td{{background:var(--blue-2)}}
       <div class="impact-item">
         <div class="impact-item-val">40+ hrs</div>
         <div class="impact-item-lbl">Saved per week vs manual checks</div>
-      </div>
-      <div class="impact-item">
-        <div class="impact-item-val">{total_checked_display}</div>
-        <div class="impact-item-lbl">Links continuously monitored</div>
       </div>
       <div class="impact-item">
         <div class="impact-item-val">Weekly</div>
@@ -1273,12 +1271,15 @@ tbody tr:hover td{{background:var(--blue-2)}}
   <div class="insights-grid">
     <div class="insight-card">
       <div class="insight-title">Broken Links by Category</div>
-      <div class="donut-container">
-        <canvas id="categoryChart"></canvas>
-        <div class="donut-center">
-          <div class="donut-center-val">{total_broken}</div>
-          <div class="donut-center-lbl">Total</div>
+      <div class="donut-wrap">
+        <div class="donut-container">
+          <canvas id="categoryChart"></canvas>
+          <div class="donut-center">
+            <div class="donut-center-val">{total_broken}</div>
+            <div class="donut-center-lbl">Total</div>
+          </div>
         </div>
+        <ul class="donut-legend" id="donutLegend"></ul>
       </div>
     </div>
     <div class="insight-card">
@@ -1400,6 +1401,7 @@ if (typeof Chart !== 'undefined' && PROGRESS_DATA.labels.length > 0) {{
 
 // Render category donut chart (Sonatype grayscale palette - clean, minimal)
 if (typeof Chart !== 'undefined' && CATEGORY_DATA.labels.length > 0) {{
+  const donutColors = ['#006adc','#4a4a56','#8b8b9a','#bbbbc6','#d9d9e0','#e8e8ec'];
   const ctxCat = document.getElementById('categoryChart').getContext('2d');
   new Chart(ctxCat, {{
     type: 'doughnut',
@@ -1407,7 +1409,7 @@ if (typeof Chart !== 'undefined' && CATEGORY_DATA.labels.length > 0) {{
       labels: CATEGORY_DATA.labels,
       datasets: [{{
         data: CATEGORY_DATA.counts,
-        backgroundColor: ['#006adc','#4a4a56','#8b8b9a','#bbbbc6','#d9d9e0','#e8e8ec'],
+        backgroundColor: donutColors,
         borderColor: '#fff',
         borderWidth: 2,
         hoverOffset: 6
@@ -1418,17 +1420,7 @@ if (typeof Chart !== 'undefined' && CATEGORY_DATA.labels.length > 0) {{
       maintainAspectRatio: false,
       cutout: '68%',
       plugins: {{
-        legend: {{
-          position: 'right',
-          labels: {{
-            font: {{ family: 'Inter', size: 12 }},
-            color: '#4a4a56',
-            padding: 10,
-            usePointStyle: true,
-            pointStyle: 'circle',
-            boxWidth: 8
-          }}
-        }},
+        legend: {{ display: false }},
         tooltip: {{
           backgroundColor: '#1c1c24',
           titleFont: {{ family: 'Inter', size: 12, weight: '600' }},
@@ -1446,6 +1438,17 @@ if (typeof Chart !== 'undefined' && CATEGORY_DATA.labels.length > 0) {{
         }}
       }}
     }}
+  }});
+
+  // Build custom legend
+  const legendEl = document.getElementById('donutLegend');
+  CATEGORY_DATA.labels.forEach((label, i) => {{
+    const li = document.createElement('li');
+    li.className = 'donut-legend-item';
+    li.innerHTML = '<span class="donut-legend-dot" style="background:' + donutColors[i] + '"></span>' +
+                   '<span class="donut-legend-name">' + label + '</span>' +
+                   '<span class="donut-legend-count">' + CATEGORY_DATA.counts[i] + '</span>';
+    legendEl.appendChild(li);
   }});
 }}
 
