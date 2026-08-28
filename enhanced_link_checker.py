@@ -1102,7 +1102,7 @@ tbody tr:hover td{{background:var(--blue-2)}}
 /* ── impact section ── */
 .impact-section{{background:#fff;border:1px solid var(--gray-4);border-radius:8px;padding:24px 28px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}
 .impact-title{{font-size:13px;font-weight:600;color:var(--gray-10);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px}}
-.impact-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:24px}}
+.impact-grid{{display:grid;grid-template-columns:1fr 1fr;gap:24px}}
 .impact-item{{border-left:3px solid var(--blue-11);padding-left:16px}}
 .impact-item-val{{font-size:24px;font-weight:700;color:var(--gray-12);letter-spacing:-0.02em;line-height:1.2}}
 .impact-item-lbl{{font-size:12px;color:var(--gray-10);margin-top:4px;font-weight:500}}
@@ -1209,10 +1209,6 @@ tbody tr:hover td{{background:var(--blue-2)}}
   <div class="impact-section">
     <div class="impact-title">Impact &amp; Value Delivered</div>
     <div class="impact-grid">
-      <div class="impact-item">
-        <div class="impact-item-val">40+ hrs</div>
-        <div class="impact-item-lbl">Saved per week vs manual checks</div>
-      </div>
       <div class="impact-item">
         <div class="impact-item-val">Weekly</div>
         <div class="impact-item-lbl">Automated scans (Mon 10 AM IST)</div>
