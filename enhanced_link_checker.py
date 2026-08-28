@@ -691,6 +691,73 @@ class EnhancedReportGenerator:
         self.config = config
         self.logger = logger
 
+    def _calculate_cumulative_fixes(self, current_broken_urls: Set[str]) -> int:
+        """Count every unique URL that has EVER been reported as broken but is not currently broken.
+
+        This gives an accurate 'total fixed' count that includes:
+        - Links fixed then replaced by new broken ones
+        - Links fixed across multiple scans
+
+        Only counts URLs from curated/valid scans (excludes anomalous scans with >50 broken,
+        which typically indicate scan misconfigurations rather than real breakage).
+        """
+        import csv as _csv
+        from datetime import datetime as _dt
+
+        cutoff_date = _dt(2026, 6, 1)
+        MAX_VALID_BROKEN = 50  # Skip anomalous scans (misconfigurations)
+        all_ever_broken: Set[str] = set()
+
+        def _process_csv(csv_file: Path, url_col: str = 'Broken Link'):
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = _csv.DictReader(f)
+                    urls = []
+                    for row in reader:
+                        url = row.get(url_col) or row.get('URL') or ''
+                        url = url.strip()
+                        if url:
+                            urls.append(url)
+                # Skip anomalous scans (likely misconfigurations)
+                if len(urls) > MAX_VALID_BROKEN:
+                    return
+                for u in urls:
+                    all_ever_broken.add(u)
+            except (IOError, KeyError):
+                pass
+
+        # From reports directory
+        report_dir = self.config.report_dir
+        if report_dir.exists():
+            for csv_file in report_dir.glob('broken_links_categorized_*.csv'):
+                name = csv_file.stem
+                date_part = name.replace('broken_links_categorized_', '')
+                try:
+                    dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                    if dt < cutoff_date:
+                        continue
+                    _process_csv(csv_file, 'Broken Link')
+                except ValueError:
+                    continue
+
+        # Also check archive
+        archive_dir = Path(__file__).parent / '.github_pages_repo' / 'archive'
+        if archive_dir.exists():
+            for csv_file in archive_dir.glob('report_*.csv'):
+                name = csv_file.stem
+                date_part = name.replace('report_', '')
+                try:
+                    dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                    if dt < cutoff_date:
+                        continue
+                    _process_csv(csv_file, 'Broken Link')
+                except ValueError:
+                    continue
+
+        # Fixed = URLs that were broken at some point but not currently broken
+        fixed_urls = all_ever_broken - current_broken_urls
+        return len(fixed_urls)
+
     def _gather_progress_data(self, current_count: int) -> Dict:
         """Gather historical broken link counts for progress chart.
 
@@ -893,8 +960,15 @@ class EnhancedReportGenerator:
         progress_data = self._gather_progress_data(total_broken)
         progress_json = _json.dumps(progress_data)
         initial_count = progress_data['counts'][0] if progress_data['counts'] else 27
-        links_fixed = max(0, initial_count - total_broken)
-        improvement_pct = round((links_fixed / initial_count * 100), 1) if initial_count > 0 else 0
+
+        # Cumulative fix tracking: count every unique URL ever fixed
+        # (includes links fixed and then replaced by new broken ones)
+        current_broken_urls = set(link.get('url', '') for link in broken_links)
+        links_fixed = self._calculate_cumulative_fixes(current_broken_urls)
+
+        # Total ever broken = fixed + still broken
+        total_ever_broken = links_fixed + total_broken
+        improvement_pct = round((links_fixed / total_ever_broken * 100), 1) if total_ever_broken > 0 else 0
 
         # Category breakdown data for donut chart (simplified names, no emojis)
         cat_labels = []
@@ -1237,18 +1311,18 @@ tbody tr:hover td{{background:var(--blue-2)}}
 
     <div class="progress-stats">
       <div class="progress-stat">
-        <div class="progress-stat-val" style="color:var(--gray-11)">{initial_count}</div>
-        <div class="progress-stat-lbl">Starting (Jun 1, 2026)</div>
+        <div class="progress-stat-val" style="color:var(--gray-11)">{total_ever_broken}</div>
+        <div class="progress-stat-lbl">Total Ever Broken (Jun 1+)</div>
       </div>
-      <div class="progress-arrow">→</div>
-      <div class="progress-stat">
-        <div class="progress-stat-val" style="color:var(--green-11)">{total_broken}</div>
-        <div class="progress-stat-lbl">Current</div>
-      </div>
-      <div class="progress-arrow">=</div>
+      <div class="progress-arrow">−</div>
       <div class="progress-stat">
         <div class="progress-stat-val" style="color:var(--blue-11)">{links_fixed}</div>
         <div class="progress-stat-lbl">Links Fixed</div>
+      </div>
+      <div class="progress-arrow">=</div>
+      <div class="progress-stat">
+        <div class="progress-stat-val" style="color:var(--tomato-11)">{total_broken}</div>
+        <div class="progress-stat-lbl">Currently Broken</div>
       </div>
     </div>
 
