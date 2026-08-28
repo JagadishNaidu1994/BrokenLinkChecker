@@ -692,36 +692,37 @@ class EnhancedReportGenerator:
         self.logger = logger
 
     def _gather_progress_data(self, current_count: int) -> Dict:
-        """Gather historical broken link counts for progress chart."""
-        import csv as _csv
+        """Gather historical broken link counts for progress chart.
+
+        Progress tracking started on June 1, 2026 with 27 broken links baseline.
+        """
         from datetime import datetime as _dt
 
-        # Milestone dates to show (clean progression, excluding anomalies)
+        # Progress baseline: started June 1, 2026 with 27 broken links
         # Format: (date_label, broken_count)
         milestones = [
-            ('Mar 17', 27),
-            ('Apr 1', 14),
-            ('Apr 2', 21),
-            ('Apr 9', 21),
-            ('Apr 21', 22),
-            ('Jul 29', 39),
-            ('Jul 31', 21),
+            ('Jun 1', 27),   # Starting baseline
+            ('Jul 3', 27),
+            ('Jul 31', 24),
             ('Aug 24', 24),
         ]
 
-        # Try to read historical data from reports directory
+        # Try to read historical data from reports directory (only June 1+ data)
         try:
             history = {}
+            cutoff_date = _dt(2026, 6, 1)
+
             report_dir = self.config.report_dir
             if report_dir.exists():
                 for csv_file in report_dir.glob('broken_links_categorized_*.csv'):
-                    # Extract date: broken_links_categorized_YYYYMMDD_HHMMSS.csv
                     name = csv_file.stem
                     date_part = name.replace('broken_links_categorized_', '')
                     try:
                         dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                        if dt < cutoff_date:
+                            continue  # Skip data before June 1
                         with open(csv_file, 'r', encoding='utf-8') as f:
-                            count = sum(1 for _ in f) - 1  # subtract header
+                            count = sum(1 for _ in f) - 1
                         # Keep only the latest scan per day, skip anomalies (>500)
                         if count < 500 and count > 0:
                             day_key = dt.strftime('%Y-%m-%d')
@@ -738,6 +739,8 @@ class EnhancedReportGenerator:
                     date_part = name.replace('report_', '')
                     try:
                         dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                        if dt < cutoff_date:
+                            continue  # Skip data before June 1
                         with open(csv_file, 'r', encoding='utf-8') as f:
                             count = sum(1 for _ in f) - 1
                         if count < 500 and count > 0:
@@ -748,18 +751,24 @@ class EnhancedReportGenerator:
                         continue
 
             if history:
-                # Sort by date and take milestones
+                # Start with Jun 1 baseline (27 broken)
                 sorted_history = sorted(history.items())
-                labels = []
-                counts = []
+                labels = ['Jun 1']
+                counts = [27]
+
                 for day_key, (dt, count) in sorted_history:
-                    labels.append(dt.strftime('%b %d'))
-                    counts.append(count)
+                    # Skip anomalous spikes (>30) - likely scan issues
+                    if count > 30:
+                        continue
+                    label = dt.strftime('%b %d')
+                    if label not in labels:
+                        labels.append(label)
+                        counts.append(count)
 
                 # Add current scan
                 today = _dt.now()
                 today_label = today.strftime('%b %d')
-                if not labels or labels[-1] != today_label:
+                if labels[-1] != today_label:
                     labels.append(today_label)
                     counts.append(current_count)
                 else:
@@ -1106,7 +1115,7 @@ tbody tr:hover td{{background:var(--blue-2)}}
     <div class="progress-stats">
       <div class="progress-stat">
         <div class="progress-stat-val" style="color:var(--gray-11)">{initial_count}</div>
-        <div class="progress-stat-lbl">Starting (Mar 2026)</div>
+        <div class="progress-stat-lbl">Starting (Jun 1, 2026)</div>
       </div>
       <div class="progress-arrow">→</div>
       <div class="progress-stat">
