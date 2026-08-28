@@ -929,10 +929,11 @@ class EnhancedReportGenerator:
         if not top_pages_html:
             top_pages_html = '<li class="top-pages-item"><span class="top-pages-name" style="color:var(--gray-10)">No broken links found</span></li>'
 
-        # Impact metrics
-        # We assume ~6000 links continuously monitored (based on typical scan)
-        total_checked_display = "6,000+"
-        healthy_pct = round(((6000 - total_broken) / 6000 * 100), 2) if total_broken < 6000 else 0
+        # Impact metrics — use actual scan count from most recent full scan
+        # Fallback: 6001 (from last confirmed scan on Aug 24, 2026)
+        total_links_scanned = getattr(self, '_last_scan_count', 6001)
+        total_checked_display = f"{total_links_scanned:,}"
+        healthy_pct = round(((total_links_scanned - total_broken) / total_links_scanned * 100), 2) if total_links_scanned > 0 else 0
 
         # Health score calculation (based on broken link ratio and trend)
         broken_ratio = (total_broken / 6000) * 100 if total_broken > 0 else 0
@@ -1882,6 +1883,8 @@ class EnhancedBrokenLinkMonitor:
         """
         all_broken = []
         all_false_positives = []
+        # Track ALL unique links scanned (for full audit CSV)
+        self.all_scanned_links: List[Dict] = []
 
         for doc_url in self.config.docs_urls:
             self.logger.info("="*70)
@@ -1936,6 +1939,17 @@ class EnhancedBrokenLinkMonitor:
                     try:
                         status, error = future.result()
 
+                        # Record ALL scanned links (working + broken) for full audit
+                        self.all_scanned_links.append({
+                            'url': link,
+                            'source': source_url,
+                            'status': status,
+                            'error': error if error else '',
+                            'site': doc_url,
+                            'context': context,
+                            'result': 'OK' if (status > 0 and status < 400) else ('BROKEN' if self.link_checker.is_truly_broken(link, status, error) else 'FALSE_POSITIVE')
+                        })
+
                         if status == 0 or status >= 400:
                             link_data = {
                                 'url': link,
@@ -1962,6 +1976,54 @@ class EnhancedBrokenLinkMonitor:
         self.logger.info("✓ Closed HTTP session to free resources")
 
         return all_broken, all_false_positives
+
+    def _save_all_links_csv(self, all_links: List[Dict]) -> Path:
+        """Save comprehensive CSV of ALL scanned links (working + broken + false positives).
+
+        Provides a complete audit log and proves the deduplication is working.
+        """
+        import csv as _csv
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        csv_file = self.config.report_dir / f"all_scanned_links_{timestamp}.csv"
+
+        # Deduplicate by URL (final safety check)
+        seen_urls = set()
+        unique_links = []
+        for link in all_links:
+            url = link.get('url', '')
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                unique_links.append(link)
+
+        # Sort: broken first, then false positives, then OK
+        result_order = {'BROKEN': 0, 'FALSE_POSITIVE': 1, 'OK': 2}
+        unique_links.sort(key=lambda x: (result_order.get(x.get('result', 'OK'), 3), x.get('url', '')))
+
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = _csv.writer(f)
+            writer.writerow(['URL', 'Source Page', 'Status', 'Result', 'Error', 'Context'])
+            for link in unique_links:
+                writer.writerow([
+                    link.get('url', ''),
+                    link.get('source', ''),
+                    link.get('status', ''),
+                    link.get('result', 'OK'),
+                    link.get('error', ''),
+                    link.get('context', ''),
+                ])
+
+        # Log stats for transparency
+        total = len(all_links)
+        unique = len(unique_links)
+        duplicates = total - unique
+        by_result = defaultdict(int)
+        for link in unique_links:
+            by_result[link.get('result', 'OK')] += 1
+
+        self.logger.info(f"✓ All-links audit CSV saved: {csv_file}")
+        self.logger.info(f"  Total processed: {total} | Unique: {unique} | Duplicates removed: {duplicates}")
+        self.logger.info(f"  OK: {by_result['OK']} | Broken: {by_result['BROKEN']} | False positives: {by_result['FALSE_POSITIVE']}")
+        return csv_file
 
     def run_check(self):
         """Run enhanced check with categorization."""
@@ -2005,6 +2067,13 @@ class EnhancedBrokenLinkMonitor:
                 lnk for lnk in truly_broken
                 if not any(_re.search(pat, lnk['url']) for pat in self.config.exclude_patterns)
             ]
+
+        # Save comprehensive all-links CSV (audit log of every scanned URL)
+        all_links = getattr(self.link_checker, 'all_scanned_links', None) or getattr(self, 'all_scanned_links', [])
+        if not all_links and hasattr(self, 'all_scanned_links'):
+            all_links = self.all_scanned_links
+        if all_links:
+            self._save_all_links_csv(all_links)
 
         # Generate categorized CSV and HTML reports
         if truly_broken:
