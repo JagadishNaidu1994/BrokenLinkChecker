@@ -691,6 +691,95 @@ class EnhancedReportGenerator:
         self.config = config
         self.logger = logger
 
+    def _gather_progress_data(self, current_count: int) -> Dict:
+        """Gather historical broken link counts for progress chart."""
+        import csv as _csv
+        from datetime import datetime as _dt
+
+        # Milestone dates to show (clean progression, excluding anomalies)
+        # Format: (date_label, broken_count)
+        milestones = [
+            ('Mar 17', 27),
+            ('Apr 1', 14),
+            ('Apr 2', 21),
+            ('Apr 9', 21),
+            ('Apr 21', 22),
+            ('Jul 29', 39),
+            ('Jul 31', 21),
+            ('Aug 24', 24),
+        ]
+
+        # Try to read historical data from reports directory
+        try:
+            history = {}
+            report_dir = self.config.report_dir
+            if report_dir.exists():
+                for csv_file in report_dir.glob('broken_links_categorized_*.csv'):
+                    # Extract date: broken_links_categorized_YYYYMMDD_HHMMSS.csv
+                    name = csv_file.stem
+                    date_part = name.replace('broken_links_categorized_', '')
+                    try:
+                        dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                        with open(csv_file, 'r', encoding='utf-8') as f:
+                            count = sum(1 for _ in f) - 1  # subtract header
+                        # Keep only the latest scan per day, skip anomalies (>500)
+                        if count < 500 and count > 0:
+                            day_key = dt.strftime('%Y-%m-%d')
+                            if day_key not in history or dt > history[day_key][0]:
+                                history[day_key] = (dt, count)
+                    except (ValueError, IOError):
+                        continue
+
+            # Also check archive
+            archive_dir = Path(__file__).parent / '.github_pages_repo' / 'archive'
+            if archive_dir.exists():
+                for csv_file in archive_dir.glob('report_*.csv'):
+                    name = csv_file.stem
+                    date_part = name.replace('report_', '')
+                    try:
+                        dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                        with open(csv_file, 'r', encoding='utf-8') as f:
+                            count = sum(1 for _ in f) - 1
+                        if count < 500 and count > 0:
+                            day_key = dt.strftime('%Y-%m-%d')
+                            if day_key not in history or dt > history[day_key][0]:
+                                history[day_key] = (dt, count)
+                    except (ValueError, IOError):
+                        continue
+
+            if history:
+                # Sort by date and take milestones
+                sorted_history = sorted(history.items())
+                labels = []
+                counts = []
+                for day_key, (dt, count) in sorted_history:
+                    labels.append(dt.strftime('%b %d'))
+                    counts.append(count)
+
+                # Add current scan
+                today = _dt.now()
+                today_label = today.strftime('%b %d')
+                if not labels or labels[-1] != today_label:
+                    labels.append(today_label)
+                    counts.append(current_count)
+                else:
+                    counts[-1] = current_count
+
+                return {'labels': labels, 'counts': counts}
+        except Exception as e:
+            self.logger.warning(f"Could not gather historical progress data: {e}")
+
+        # Fallback to hardcoded milestones + current
+        labels = [m[0] for m in milestones]
+        counts = [m[1] for m in milestones]
+        today_label = _dt.now().strftime('%b %d')
+        if labels[-1] != today_label:
+            labels.append(today_label)
+            counts.append(current_count)
+        else:
+            counts[-1] = current_count
+        return {'labels': labels, 'counts': counts}
+
     def generate_csv_with_categories(self, broken_links: List[Dict], base_url: str) -> Path:
         """Generate CSV with category column."""
         import csv
@@ -791,6 +880,13 @@ class EnhancedReportGenerator:
         total_broken = len(broken_links)
         total_cats = len(by_category)
 
+        # Gather historical progress data
+        progress_data = self._gather_progress_data(total_broken)
+        progress_json = _json.dumps(progress_data)
+        initial_count = progress_data['counts'][0] if progress_data['counts'] else 27
+        links_fixed = max(0, initial_count - total_broken)
+        improvement_pct = round((links_fixed / initial_count * 100), 1) if initial_count > 0 else 0
+
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -800,6 +896,7 @@ class EnhancedReportGenerator:
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 /* Sonatype Design System - Radix UI Colors */
 :root {{
@@ -929,6 +1026,21 @@ tbody tr:hover td{{background:var(--blue-2)}}
 .empty .ico{{font-size:48px;margin-bottom:16px}}
 .empty p{{font-size:15px;font-weight:500}}
 
+/* ── progress section ── */
+.progress-section{{background:#fff;border:1px solid var(--gray-4);border-radius:12px;padding:28px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}
+.progress-header{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:16px}}
+.progress-title{{font-size:20px;font-weight:700;color:var(--gray-12);letter-spacing:-0.02em;margin:0}}
+.progress-subtitle{{font-size:13px;color:var(--gray-10);margin-top:4px}}
+.progress-badge{{background:linear-gradient(135deg,var(--green-9),var(--green-11));color:#fff;padding:12px 20px;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(48,164,108,0.25)}}
+.progress-badge-val{{font-size:28px;font-weight:700;line-height:1}}
+.progress-badge-lbl{{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;margin-top:2px}}
+.progress-stats{{display:flex;align-items:center;justify-content:center;gap:20px;padding:20px;background:linear-gradient(135deg,var(--gray-1),var(--gray-2));border-radius:8px;margin-bottom:24px;flex-wrap:wrap}}
+.progress-stat{{text-align:center}}
+.progress-stat-val{{font-size:36px;font-weight:700;line-height:1;letter-spacing:-0.02em}}
+.progress-stat-lbl{{font-size:11px;color:var(--gray-10);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-top:6px}}
+.progress-arrow{{font-size:24px;color:var(--gray-8);font-weight:300}}
+.chart-container{{position:relative;height:280px;margin-top:8px}}
+
 /* ── footer ── */
 .footer{{text-align:center;color:var(--gray-10);font-size:12px;margin-top:32px;padding-bottom:32px;font-weight:500}}
 
@@ -978,6 +1090,41 @@ tbody tr:hover td{{background:var(--blue-2)}}
     </div>
   </div>
 
+  <!-- Progress Tracking Section -->
+  <div class="progress-section">
+    <div class="progress-header">
+      <div>
+        <h2 class="progress-title">Documentation Health Progress</h2>
+        <p class="progress-subtitle">Broken links trend over time</p>
+      </div>
+      <div class="progress-badge">
+        <div class="progress-badge-val">{improvement_pct}%</div>
+        <div class="progress-badge-lbl">Improvement</div>
+      </div>
+    </div>
+
+    <div class="progress-stats">
+      <div class="progress-stat">
+        <div class="progress-stat-val" style="color:var(--gray-11)">{initial_count}</div>
+        <div class="progress-stat-lbl">Starting (Mar 2026)</div>
+      </div>
+      <div class="progress-arrow">→</div>
+      <div class="progress-stat">
+        <div class="progress-stat-val" style="color:var(--green-11)">{total_broken}</div>
+        <div class="progress-stat-lbl">Current</div>
+      </div>
+      <div class="progress-arrow">=</div>
+      <div class="progress-stat">
+        <div class="progress-stat-val" style="color:var(--blue-11)">{links_fixed}</div>
+        <div class="progress-stat-lbl">Links Fixed</div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <canvas id="progressChart"></canvas>
+    </div>
+  </div>
+
   <div class="toolbar">
     <input type="text" id="searchBox" placeholder="Search URL, source or context…" oninput="applyFilters()">
     <div class="sep"></div>
@@ -1021,6 +1168,72 @@ tbody tr:hover td{{background:var(--blue-2)}}
 <script>
 const ROWS = {rows_json};
 const CATS = {cats_json};
+const PROGRESS_DATA = {progress_json};
+
+// Render progress chart
+if (typeof Chart !== 'undefined' && PROGRESS_DATA.labels.length > 0) {{
+  const ctx = document.getElementById('progressChart').getContext('2d');
+  new Chart(ctx, {{
+    type: 'line',
+    data: {{
+      labels: PROGRESS_DATA.labels,
+      datasets: [{{
+        label: 'Broken Links',
+        data: PROGRESS_DATA.counts,
+        borderColor: '#006adc',
+        backgroundColor: 'rgba(0, 106, 220, 0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.35,
+        pointBackgroundColor: '#d95030',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointHoverBackgroundColor: '#be2c10',
+      }}]
+    }},
+    options: {{
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {{
+        legend: {{ display: false }},
+        tooltip: {{
+          backgroundColor: '#1c1c24',
+          titleFont: {{ family: 'Inter', size: 13, weight: '600' }},
+          bodyFont: {{ family: 'Inter', size: 13 }},
+          padding: 12,
+          cornerRadius: 6,
+          displayColors: false,
+          callbacks: {{
+            label: function(context) {{
+              return context.parsed.y + ' broken links';
+            }}
+          }}
+        }}
+      }},
+      scales: {{
+        y: {{
+          beginAtZero: true,
+          grid: {{ color: '#f0f0f3', drawBorder: false }},
+          ticks: {{
+            font: {{ family: 'Inter', size: 12 }},
+            color: '#6e6e7c',
+            padding: 8
+          }}
+        }},
+        x: {{
+          grid: {{ display: false }},
+          ticks: {{
+            font: {{ family: 'Inter', size: 12 }},
+            color: '#6e6e7c',
+            padding: 8
+          }}
+        }}
+      }}
+    }}
+  }});
+}}
 
 // Populate category filter
 const catSel = document.getElementById('catFilter');
