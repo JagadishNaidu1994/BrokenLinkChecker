@@ -632,8 +632,34 @@ class WebCrawler:
             soup = BeautifulSoup(html, 'html.parser')
 
             for tag in soup.find_all('a', href=True):
-                href = tag['href']
+                href = tag['href'].strip()
+
+                # Skip malformed hrefs that look like placeholder text
+                # (e.g., href="FastText" or href="TODO" - unresolved template variables)
+                # A valid href either starts with a scheme, is a path (/), an anchor (#),
+                # a mailto:, or is a proper protocol-relative URL (//)
+                if href and not href.startswith(('http://', 'https://', 'ftp://', 'mailto:', 'tel:', '/', '#', './', '../', '//')):
+                    # Suspicious: raw text-like href without protocol/slash
+                    # Only accept if it looks like a domain (contains a dot)
+                    if '.' not in href.split('?')[0].split('#')[0]:
+                        self.logger.debug(f"Skipping malformed href '{href}' on {base_url}")
+                        continue
+
+                # Reject hrefs that resolve to obviously bad URLs like http://SingleWord
                 absolute_url = urljoin(base_url, href)
+                # Extract host and check if it's a plausible hostname
+                try:
+                    from urllib.parse import urlparse as _urlparse
+                    parsed_url = _urlparse(absolute_url)
+                    if parsed_url.scheme in ('http', 'https') and parsed_url.netloc:
+                        # Hostname must contain a dot (domain.tld) OR be an IP
+                        # Reject things like http://FastText, http://TODO, http://foo
+                        host = parsed_url.hostname or ''
+                        if '.' not in host and not host.replace('localhost', '').isdigit():
+                            self.logger.debug(f"Skipping placeholder URL '{absolute_url}' from href '{href}' on {base_url}")
+                            continue
+                except Exception:
+                    pass
 
                 # Check if this is a 404-page.html link BEFORE stripping anchor
                 is_404_page = '404-page.html' in absolute_url
