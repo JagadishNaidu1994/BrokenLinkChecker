@@ -126,9 +126,46 @@ class Config:
 # ============================================================================
 
 class CategoryExtractor:
-    """Extract homepage folder category from URLs."""
+    """Extract homepage folder category from URLs.
 
-    # Homepage folder mapping based on keywords in page names
+    Uses explicit page-to-product mapping (from actual Sonatype help breadcrumbs)
+    for known pages, falling back to keyword-based matching for unknown ones.
+    """
+
+    # Explicit page→product mapping based on actual Sonatype help breadcrumbs.
+    # Format: filename (without .html) → product name
+    # This is the SOURCE OF TRUTH — supersedes keyword matching.
+    PAGE_CATEGORY_MAP = {
+        # Sonatype Lifecycle
+        'best-practices-dashboard': 'Sonatype Lifecycle',
+        'example-waiver-workflows': 'Sonatype Lifecycle',
+        'docker-image-analysis': 'Sonatype Lifecycle',
+        'hugging-face-model-analysis': 'Sonatype Lifecycle',
+        'certificates-and-secure-connections': 'Sonatype Lifecycle',
+        'logging-configuration': 'Sonatype Lifecycle',
+        'webhooks-concepts--iq-server-and-slack-integration': 'Sonatype Lifecycle',
+        'automated-pull-requests-in-npm': 'Sonatype Integrations',
+        'pull-request-commenting': 'Sonatype Integrations',
+
+        # Sonatype Repository Firewall
+        'jfrog-artifactory-setup': 'Sonatype Repository Firewall',
+
+        # Sonatype IQ Server
+        'download-and-compatibility': 'Sonatype IQ Server',
+        'release-specific-upgrade-instructions': 'Sonatype IQ Server',
+
+        # Sonatype Nexus Repository (many of these WERE correctly classified)
+        'bundle-development': 'Sonatype Nexus Repository',
+        'create-a-composer-repository': 'Sonatype Nexus Repository',
+        'create-a-helm-repository': 'Sonatype Nexus Repository',
+        'create-an-oci-repository': 'Sonatype Nexus Repository',
+        'download': 'Sonatype Nexus Repository',
+        'nexus-repository-upgrade-paths': 'Sonatype Nexus Repository',
+        'npm-security': 'Sonatype Nexus Repository',
+        'resilient-nexus-repository-deployment-to-google-cloud': 'Sonatype Nexus Repository',
+    }
+
+    # Homepage folder mapping based on keywords in page names (fallback only)
     HOMEPAGE_FOLDERS = {
         'Sonatype Nexus Repository': [
             'nexus-repository',
@@ -257,26 +294,64 @@ class CategoryExtractor:
     def extract_category(url: str, base_url: str = "") -> str:
         """Extract homepage folder category from URL.
 
+        1. Explicit page mapping (source of truth from actual breadcrumbs)
+        2. Keyword-based fallback for unknown pages
+        3. Default to Nexus Repository
+
         Returns one of the 9 official Sonatype categories.
-        If no match found, defaults to 'Sonatype Nexus Repository' as it's the most common.
         """
         try:
             parsed = urlparse(url)
             path = parsed.path.lower()
             filename = Path(path).stem
 
-            # Check homepage folders
+            # 1. Check explicit page mapping (source of truth)
+            if filename in CategoryExtractor.PAGE_CATEGORY_MAP:
+                return CategoryExtractor.PAGE_CATEGORY_MAP[filename]
+
+            # 2. Fall back to keyword matching
             for folder, keywords in CategoryExtractor.HOMEPAGE_FOLDERS.items():
                 for keyword in keywords:
                     if keyword in filename:
                         return folder
 
-            # Default to Nexus Repository for unmatched pages
-            # (most documentation is Nexus-related)
+            # 3. Default
             return "Sonatype Nexus Repository"
 
         except Exception:
             return "Sonatype Nexus Repository"
+
+    @staticmethod
+    def detect_category_from_breadcrumb(url: str, session=None) -> Optional[str]:
+        """Fetch a Sonatype help page and detect its parent product from breadcrumb.
+
+        Returns the product name (e.g., 'Sonatype Lifecycle') or None if it can't be determined.
+        Use this to auto-populate PAGE_CATEGORY_MAP for new pages.
+        """
+        try:
+            import requests as _requests
+            import re as _re
+            if session is None:
+                session = _requests.Session()
+                session.headers.update({'User-Agent': 'Mozilla/5.0'})
+            r = session.get(url, timeout=15)
+            if r.status_code != 200:
+                return None
+            m = _re.search(r'<ul class="breadcrumb">(.+?)</ul>', r.text, _re.DOTALL)
+            if not m:
+                return None
+            items = _re.findall(
+                r'<li[^>]*>\s*(?:<a[^>]*href="([^"]*)"[^>]*>)?\s*([^<]+?)\s*(?:</a>)?\s*</li>',
+                m.group(1)
+            )
+            if len(items) >= 2:
+                product = items[1][1].strip()
+                # Validate it starts with 'Sonatype '
+                if product.startswith('Sonatype '):
+                    return product
+            return None
+        except Exception:
+            return None
 
     @staticmethod
     def get_display_category(category: str) -> str:
