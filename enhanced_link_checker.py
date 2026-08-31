@@ -691,6 +691,20 @@ class EnhancedReportGenerator:
         self.config = config
         self.logger = logger
 
+    def _normalize_url(self, url: str) -> str:
+        """Normalize a URL to catch semantic duplicates.
+
+        - Strip whitespace
+        - Remove URL fragment (#foo) - same page, different anchor
+        - Remove trailing slash
+        """
+        url = url.strip()
+        url = url.split('#')[0]  # strip fragment
+        if url.endswith('/') and url.count('/') > 3:
+            # only strip trailing slash if it's not right after protocol
+            url = url.rstrip('/')
+        return url
+
     def _calculate_cumulative_fixes(self, current_broken_urls: Set[str]) -> int:
         """Count every unique URL that has EVER been reported as broken but is not currently broken.
 
@@ -698,14 +712,21 @@ class EnhancedReportGenerator:
         - Links fixed then replaced by new broken ones
         - Links fixed across multiple scans
 
-        Only counts URLs from curated/valid scans (excludes anomalous scans with >50 broken,
-        which typically indicate scan misconfigurations rather than real breakage).
+        Filters:
+        - Only counts scans from June 1, 2026 onwards
+        - Skips anomalous scans (>50 broken - misconfigurations)
+        - Normalizes URLs (strip fragments, trailing slashes) to catch semantic dupes
+        - Deduplicates against normalized current broken URLs
+
+        Historical URLs that match current EXCLUDE_PATTERNS are still counted
+        (they were legitimately broken; excluding them now retroactively is wrong).
         """
         import csv as _csv
         from datetime import datetime as _dt
 
         cutoff_date = _dt(2026, 6, 1)
-        MAX_VALID_BROKEN = 50  # Skip anomalous scans (misconfigurations)
+        MAX_VALID_BROKEN = 50
+
         all_ever_broken: Set[str] = set()
 
         def _process_csv(csv_file: Path, url_col: str = 'Broken Link'):
@@ -715,10 +736,9 @@ class EnhancedReportGenerator:
                     urls = []
                     for row in reader:
                         url = row.get(url_col) or row.get('URL') or ''
-                        url = url.strip()
+                        url = self._normalize_url(url)
                         if url:
                             urls.append(url)
-                # Skip anomalous scans (likely misconfigurations)
                 if len(urls) > MAX_VALID_BROKEN:
                     return
                 for u in urls:
@@ -754,8 +774,11 @@ class EnhancedReportGenerator:
                 except ValueError:
                     continue
 
+        # Normalize current broken URLs for fair comparison
+        normalized_current = {self._normalize_url(u) for u in current_broken_urls}
+
         # Fixed = URLs that were broken at some point but not currently broken
-        fixed_urls = all_ever_broken - current_broken_urls
+        fixed_urls = all_ever_broken - normalized_current
         return len(fixed_urls)
 
     def _gather_progress_data(self, current_count: int) -> Dict:
