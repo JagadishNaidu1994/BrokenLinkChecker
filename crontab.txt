@@ -1,0 +1,2 @@
+# Broken Link Checker - Runs every day at 10 AM IST (4:30 AM UTC)
+30 4 * * * /Library/Frameworks/Python.framework/Versions/3.14/bin/python3 /Users/jagadishbondada/Desktop/BrokenLinkChecker/enhanced_link_checker.py >> /Users/jagadishbondada/Desktop/BrokenLinkChecker/cron.log 2>&1
