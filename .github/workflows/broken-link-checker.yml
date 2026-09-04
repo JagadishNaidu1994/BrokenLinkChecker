@@ -1,0 +1,45 @@
+name: Broken Link Checker
+
+on:
+  schedule:
+    - cron: '30 4 * * *'  # 10:00 AM IST (4:30 AM UTC) daily
+  workflow_dispatch:        # Allow manual trigger from GitHub UI
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout BrokenLinkChecker repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run broken link checker
+        env:
+          DOCS_URLS: https://help.sonatype.com/en/sonatype-product-overview.html
+          MAX_PAGES_PER_SITE: 0
+          PARALLEL_WORKERS: 50
+          ENABLE_GITHUB_UPLOAD: true
+          GITHUB_USERNAME: sonatype-docs
+          GITHUB_REPO_NAME: broken-links-reports
+          GITHUB_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+          ENABLE_SLACK_NOTIFICATIONS: false
+          EXCLUDE_PATTERNS: "https://help.sonatype.com/document/,https://help.sonatype.com/cdn-cgi/l/email-protection,http://your-host:8095/crowd,https://sso.your.domain/auth/realms/nexus,https://help.sonatype.com/en/404-page.html,https://repo1.dso.mil/dsop/sonatype/nexus/nexus,https://repo1.dso.mil/dsop/sonatype/nexus-iq-server/nexus-iq-server,https://github.com/samplecount/samplerepo,https://repo.sonatype.com/repository/sonatype-hosted/pki/deb-gpg/GPG-KEY-sonatype-apt-hosted.asc,urn:resource:component:,https://support.sonatype.com/hc/en-us/articles/1500000415082,https://plugins.jenkins.io/nexus-jenkins-plugin/,https://support.sonatype.com/hc/en-us/articles/4408801690515,https://support.sonatype.com/hc/en-us/articles/4409326330003,https://helm.ngc.nvidia.com/nvidia,https://registry-1.docker.io"
+        run: python3 enhanced_link_checker.py
+
+      - name: Upload reports as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: broken-links-reports-${{ github.run_id }}
+          path: reports/
+          retention-days: 30
