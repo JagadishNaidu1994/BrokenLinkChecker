@@ -871,7 +871,7 @@ class EnhancedReportGenerator:
                 except ValueError:
                     continue
 
-        # Also check archive
+        # Check local archive clone first
         archive_dir = Path(__file__).parent / '.github_pages_repo' / 'archive'
         if archive_dir.exists():
             for csv_file in archive_dir.glob('report_*.csv'):
@@ -884,6 +884,54 @@ class EnhancedReportGenerator:
                     _process_csv(csv_file, 'Broken Link')
                 except ValueError:
                     continue
+        else:
+            # Fallback: fetch archive CSVs directly from GitHub API (works in CI without a local clone)
+            try:
+                import urllib.request as _urllib
+                import json as _json
+                import tempfile as _tmp
+
+                github_token = os.getenv('GITHUB_TOKEN') or os.getenv('GH_PAT')
+                username = self.config.github_username
+                repo_name = self.config.github_repo_name
+                api_url = f"https://api.github.com/repos/{username}/{repo_name}/contents/archive"
+                headers = {'Accept': 'application/vnd.github.v3+json'}
+                if github_token:
+                    headers['Authorization'] = f'token {github_token}'
+
+                req = _urllib.Request(api_url, headers=headers)
+                with _urllib.urlopen(req, timeout=15) as resp:
+                    contents = _json.loads(resp.read())
+
+                for item in contents:
+                    name = item.get('name', '')
+                    if not name.endswith('.csv') or not name.startswith('report_'):
+                        continue
+                    date_part = name.replace('report_', '').replace('.csv', '')
+                    try:
+                        dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                        if dt < cutoff_date:
+                            continue
+                    except ValueError:
+                        continue
+
+                    # Download the raw CSV
+                    raw_url = item.get('download_url')
+                    if not raw_url:
+                        continue
+                    try:
+                        raw_req = _urllib.Request(raw_url, headers=headers)
+                        with _urllib.urlopen(raw_req, timeout=15) as raw_resp:
+                            csv_content = raw_resp.read().decode('utf-8')
+                        with _tmp.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as tmp:
+                            tmp.write(csv_content)
+                            tmp_path = Path(tmp.name)
+                        _process_csv(tmp_path, 'Broken Link')
+                        tmp_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+            except Exception as e:
+                self.logger.warning(f"Could not fetch archive CSVs from GitHub API: {e}")
 
         # Normalize current broken URLs for fair comparison
         normalized_current = {self._normalize_url(u) for u in current_broken_urls}
@@ -1012,24 +1060,60 @@ class EnhancedReportGenerator:
                     except (ValueError, IOError):
                         continue
 
-            # Also check archive
+            # Check local archive clone, or fall back to GitHub API
             archive_dir = Path(__file__).parent / '.github_pages_repo' / 'archive'
+            archive_csv_files = []  # list of (date_str, file_path_or_content)
+
             if archive_dir.exists():
                 for csv_file in archive_dir.glob('report_*.csv'):
-                    name = csv_file.stem
-                    date_part = name.replace('report_', '')
-                    try:
-                        dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
-                        if dt < cutoff_date:
-                            continue  # Skip data before June 1
-                        with open(csv_file, 'r', encoding='utf-8') as f:
-                            count = sum(1 for _ in f) - 1
-                        if count < 500 and count > 0:
-                            day_key = dt.strftime('%Y-%m-%d')
-                            if day_key not in history or dt > history[day_key][0]:
-                                history[day_key] = (dt, count)
-                    except (ValueError, IOError):
+                    archive_csv_files.append(('local', csv_file))
+            else:
+                try:
+                    import urllib.request as _urllib2
+                    import json as _json2
+                    import tempfile as _tmp2
+                    github_token = os.getenv('GITHUB_TOKEN') or os.getenv('GH_PAT')
+                    username = self.config.github_username
+                    repo_name = self.config.github_repo_name
+                    api_url = f"https://api.github.com/repos/{username}/{repo_name}/contents/archive"
+                    hdrs = {'Accept': 'application/vnd.github.v3+json'}
+                    if github_token:
+                        hdrs['Authorization'] = f'token {github_token}'
+                    req = _urllib2.Request(api_url, headers=hdrs)
+                    with _urllib2.urlopen(req, timeout=15) as resp:
+                        items = _json2.loads(resp.read())
+                    for item in items:
+                        n = item.get('name', '')
+                        if n.endswith('.csv') and n.startswith('report_'):
+                            raw_url = item.get('download_url')
+                            if raw_url:
+                                try:
+                                    rreq = _urllib2.Request(raw_url, headers=hdrs)
+                                    with _urllib2.urlopen(rreq, timeout=15) as rr:
+                                        content = rr.read().decode('utf-8')
+                                    with _tmp2.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as t:
+                                        t.write(content)
+                                        archive_csv_files.append(('local', Path(t.name)))
+                                except Exception:
+                                    pass
+                except Exception as e:
+                    self.logger.warning(f"Could not fetch archive from GitHub API for progress data: {e}")
+
+            for _, csv_file in archive_csv_files:
+                name = csv_file.stem
+                date_part = name.replace('report_', '')
+                try:
+                    dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                    if dt < cutoff_date:
                         continue
+                    with open(csv_file, 'r', encoding='utf-8') as f:
+                        count = sum(1 for _ in f) - 1
+                    if count < 500 and count > 0:
+                        day_key = dt.strftime('%Y-%m-%d')
+                        if day_key not in history or dt > history[day_key][0]:
+                            history[day_key] = (dt, count)
+                except (ValueError, IOError):
+                    continue
 
             if history:
                 # Start with Jun 1 baseline (27 broken)
