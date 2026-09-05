@@ -411,7 +411,9 @@ class EnhancedLinkChecker:
             'DNT': '1',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
-            'Cache-Control': 'max-age=0'
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         })
 
         return session
@@ -766,7 +768,8 @@ class WebCrawler:
             try:
                 response = self.link_checker.session.get(
                     current_url,
-                    timeout=self.config.timeout
+                    timeout=self.config.timeout,
+                    headers={'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0'}
                 )
 
                 if response.status_code != 200:
@@ -889,6 +892,86 @@ class EnhancedReportGenerator:
         fixed_urls = all_ever_broken - normalized_current
         return len(fixed_urls)
 
+    def _get_fixed_links_list(self, current_broken_urls: Set[str]) -> List[Dict]:
+        """Get list of all fixed links with details for the modal display."""
+        import csv as _csv
+        from datetime import datetime as _dt
+
+        cutoff_date = _dt(2026, 6, 1)
+        MAX_VALID_BROKEN = 50
+
+        all_ever_broken = {}  # normalized_url -> original_url
+
+        def _normalize_url(url):
+            url = url.strip().lower()
+            if url.endswith('/'):
+                url = url[:-1]
+            return url
+
+        def process_csv(csv_file, url_col='Broken Link'):
+            urls = []
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = _csv.DictReader(f)
+                    for row in reader:
+                        url = row.get(url_col) or row.get('URL') or ''
+                        url_norm = _normalize_url(url)
+                        if url_norm:
+                            urls.append((url, url_norm))
+                if len(urls) <= MAX_VALID_BROKEN:
+                    for original, normalized in urls:
+                        if normalized not in all_ever_broken:
+                            all_ever_broken[normalized] = original
+            except:
+                pass
+
+        report_dir = self.config.report_dir
+        if report_dir.exists():
+            for csv_file in sorted(report_dir.glob('broken_links_categorized_*.csv')):
+                name = csv_file.stem
+                date_part = name.replace('broken_links_categorized_', '')
+                try:
+                    dt = _dt.strptime(date_part, '%Y%m%d_%H%M%S')
+                    if dt >= cutoff_date:
+                        process_csv(csv_file, 'Broken Link')
+                except ValueError:
+                    continue
+
+        # Normalize current broken URLs
+        normalized_current = {_normalize_url(u) for u in current_broken_urls}
+
+        # Fixed = URLs that were broken at some point but not currently broken
+        fixed_normalized = set(all_ever_broken.keys()) - normalized_current
+
+        # Build list with categorization
+        fixed_list = []
+        for norm in sorted(fixed_normalized):
+            original = all_ever_broken[norm]
+            # Categorize the fix
+            if norm.startswith('urn:'):
+                category = 'Invalid URN Links'
+            elif 'http://https://' in norm:
+                category = 'Malformed URLs'
+            elif 'your-host' in norm or 'your.domain' in norm or 'sso.your' in norm:
+                category = 'Placeholder URLs'
+            elif '404-page.html' in norm:
+                category = 'Invalid 404 References'
+            elif 'support.sonatype.com' in norm:
+                category = 'Sonatype Support Articles'
+            elif 'repo1.dso.mil' in norm:
+                category = 'DSOP Repository'
+            elif 'github.com' in norm:
+                category = 'GitHub References'
+            else:
+                category = 'Other Fixes'
+
+            fixed_list.append({
+                'url': original,
+                'category': category
+            })
+
+        return fixed_list
+
     def _gather_progress_data(self, current_count: int) -> Dict:
         """Gather historical broken link counts for progress chart.
 
@@ -1003,7 +1086,7 @@ class EnhancedReportGenerator:
 
         with open(csv_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['Homepage Folder', 'Source Page', 'Broken Link', 'Error', 'Status Code', 'Context'])
+            writer.writerow(['Homepage Folder', 'Source Page', 'Broken Link', 'Error', 'Status Code', 'Context', 'Why Broken', 'Suggested Replacement'])
 
             # Write links grouped by category
             for category in sorted(by_category.keys()):
@@ -1014,7 +1097,9 @@ class EnhancedReportGenerator:
                         link['url'],
                         link['error'],
                         link['status'],
-                        link.get('context', '(no context)')
+                        link.get('context', '(no context)'),
+                        link.get('why', ''),
+                        link.get('fix', ''),
                     ])
 
         self.logger.info(f"✓ CSV with categories saved: {csv_file}")
@@ -1044,6 +1129,29 @@ class EnhancedReportGenerator:
 
         # Build rows JSON for JS filtering
         import json as _json
+
+        # Build why/fix lookup from the broken_links list itself (populated before calling this method)
+        why_fix_lookup = {link['url']: {'why': link.get('why', ''), 'fix': link.get('fix', '')} for link in broken_links}
+
+        # If no why/fix in broken_links, fall back to latest CSV that has those columns
+        if not any(v['why'] or v['fix'] for v in why_fix_lookup.values()):
+            try:
+                latest_csvs = sorted(self.config.report_dir.glob('broken_links_categorized_*.csv'), reverse=True)
+                for csv_path in latest_csvs:
+                    with open(csv_path, 'r', encoding='utf-8') as f:
+                        reader = csv.DictReader(f)
+                        if reader.fieldnames and 'Why Broken' in reader.fieldnames:
+                            for row in reader:
+                                u = row.get('Broken Link', '').strip()
+                                if u:
+                                    why_fix_lookup[u] = {
+                                        'why': row.get('Why Broken', ''),
+                                        'fix': row.get('Suggested Replacement', ''),
+                                    }
+                            break
+            except Exception:
+                pass
+
         all_rows = []
         for category in sorted(by_category.keys()):
             display_cat = CategoryExtractor.get_display_category(category)
@@ -1072,6 +1180,7 @@ class EnhancedReportGenerator:
                 context = (link.get('context') or '').strip()
                 if len(context) > 120:
                     context = context[:117] + '...'
+                wf = why_fix_lookup.get(url, {})
                 all_rows.append({
                     'cat': display_cat,
                     'src': source,
@@ -1079,6 +1188,8 @@ class EnhancedReportGenerator:
                     'ctx': context,
                     'err': error_label,
                     'ecls': error_class,
+                    'why': wf.get('why', ''),
+                    'fix': wf.get('fix', ''),
                 })
 
         rows_json = _json.dumps(all_rows)
@@ -1096,6 +1207,10 @@ class EnhancedReportGenerator:
         # (includes links fixed and then replaced by new broken ones)
         current_broken_urls = set(link.get('url', '') for link in broken_links)
         links_fixed = self._calculate_cumulative_fixes(current_broken_urls)
+
+        # Get detailed list of fixed links for modal display
+        fixed_links_list = self._get_fixed_links_list(current_broken_urls)
+        fixed_links_json = _json.dumps(fixed_links_list)
 
         # Total ever broken = fixed + still broken
         total_ever_broken = links_fixed + total_broken
@@ -1283,11 +1398,13 @@ th{{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(-
 td{{padding:10px 14px;border-bottom:1px solid var(--gray-3);vertical-align:top;font-size:13px}}
 tbody tr:last-child td{{border-bottom:none}}
 tbody tr:hover td{{background:var(--blue-2)}}
-.col-cat{{width:14%}}
-.col-src{{width:20%}}
-.col-url{{width:32%}}
-.col-ctx{{width:24%}}
-.col-err{{width:10%}}
+.col-cat{{width:10%}}
+.col-src{{width:14%}}
+.col-url{{width:20%}}
+.col-ctx{{width:16%}}
+.col-err{{width:7%}}
+.col-why{{width:16%}}
+.col-fix{{width:17%}}
 
 .cat-pill{{display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:600;background:linear-gradient(135deg,var(--blue-3),var(--blue-2));color:var(--blue-12);border:1px solid var(--blue-4)}}
 .src-link{{color:var(--blue-11);font-size:12px;word-break:break-all;font-weight:500}}
@@ -1301,6 +1418,31 @@ tbody tr:hover td{{background:var(--blue-2)}}
 .etimeout{{background:linear-gradient(135deg,#dbeafe,#e0f2fe);color:var(--blue-11);border:1px solid #bfdbfe}}
 .einvalid{{background:linear-gradient(135deg,var(--gray-2),var(--gray-1));color:var(--gray-11);border:1px solid var(--gray-4)}}
 .eother{{background:linear-gradient(135deg,var(--gray-2),var(--gray-1));color:var(--gray-11);border:1px solid var(--gray-4)}}
+
+/* ── clickable stat ── */
+.progress-stat.clickable{{cursor:pointer;transition:transform 0.15s ease,box-shadow 0.15s ease}}
+.progress-stat.clickable:hover{{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,106,220,0.15)}}
+
+/* ── modal styles ── */
+.modal-overlay{{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.2s ease}}
+.modal-overlay.active{{display:flex}}
+@keyframes fadeIn{{from{{opacity:0}}to{{opacity:1}}}}
+@keyframes slideUp{{from{{opacity:0;transform:translateY(20px)}}to{{opacity:1;transform:translateY(0)}}}}
+.modal-container{{background:#fff;border-radius:12px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp 0.3s ease}}
+.modal-header{{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--gray-4)}}
+.modal-title{{font-size:18px;font-weight:700;color:var(--gray-12)}}
+.modal-close{{background:none;border:none;font-size:24px;color:var(--gray-10);cursor:pointer;padding:4px;line-height:1;transition:color 0.15s ease}}
+.modal-close:hover{{color:var(--red-11)}}
+.modal-body{{padding:0 24px;overflow-y:auto;flex:1}}
+.modal-footer{{padding:16px 24px;border-top:1px solid var(--gray-4);display:flex;justify-content:space-between;align-items:center}}
+.modal-count{{font-size:13px;color:var(--gray-10)}}
+.fixed-links-list{{list-style:none;padding:0;margin:16px 0}}
+.fixed-link-item{{display:flex;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--gray-3);gap:12px}}
+.fixed-link-item:last-child{{border-bottom:none}}
+.fixed-link-category{{background:var(--blue-3);color:var(--blue-11);padding:4px 10px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;flex-shrink:0;min-width:120px;text-align:center}}
+.fixed-link-url{{font-size:12px;color:var(--gray-12);word-break:break-all;font-family:'SF Mono',Consolas,monospace;line-height:1.5}}
+.fixed-link-group{{margin-bottom:16px}}
+.fixed-link-group-title{{font-size:11px;font-weight:700;color:var(--gray-10);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--gray-3)}}
 
 /* ── empty state ── */
 .empty{{text-align:center;padding:80px 20px;color:var(--gray-10)}}
@@ -1449,9 +1591,9 @@ tbody tr:hover td{{background:var(--blue-2)}}
         <div class="progress-stat-lbl">Total Ever Broken (Jun 1+)</div>
       </div>
       <div class="progress-arrow">−</div>
-      <div class="progress-stat">
+      <div class="progress-stat clickable" onclick="showFixedLinksModal()" title="Click to view all fixed links">
         <div class="progress-stat-val" style="color:var(--blue-11)">{links_fixed}</div>
-        <div class="progress-stat-lbl">Links Fixed</div>
+        <div class="progress-stat-lbl">Links Fixed <span style="font-size:10px;opacity:0.7">[view]</span></div>
       </div>
       <div class="progress-arrow">=</div>
       <div class="progress-stat">
@@ -1513,6 +1655,8 @@ tbody tr:hover td{{background:var(--blue-2)}}
           <th class="col-url">Broken URL</th>
           <th class="col-ctx">Context</th>
           <th class="col-err">Error</th>
+          <th class="col-why">Why Broken</th>
+          <th class="col-fix">Suggested Replacement</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
@@ -1660,12 +1804,17 @@ CATS.forEach(c => {{
 
 function renderRow(r) {{
   const srcShort = r.src.replace(/https?:\/\/[^/]+/, '').replace(/\.html$/, '') || r.src;
+  const fixCell = r.fix
+    ? (r.fix.startsWith('http') ? `<a class="src-link" href="${{r.fix}}" target="_blank" title="${{r.fix}}">${{r.fix.replace(/^https?:\/\//, '').substring(0,50)}}${{r.fix.length > 60 ? '…' : ''}}</a>` : `<span class="ctx-text">${{r.fix}}</span>`)
+    : '<em style="color:var(--gray-9)">—</em>';
   return `<tr data-cat="${{r.cat}}" data-err="${{r.err}}">
     <td><span class="cat-pill">${{r.cat}}</span></td>
     <td><a class="src-link" href="${{r.src}}" target="_blank" title="${{r.src}}">${{srcShort}}</a></td>
     <td><span class="broken-url" title="${{r.url}}">${{r.url}}</span></td>
     <td><span class="ctx-text">${{r.ctx || '<em style="color:var(--gray-9)">—</em>'}}</span></td>
     <td><span class="badge ${{r.ecls}}">${{r.err}}</span></td>
+    <td><span class="ctx-text">${{r.why || '<em style="color:var(--gray-9)">—</em>'}}</span></td>
+    <td>${{fixCell}}</td>
   </tr>`;
 }}
 
@@ -1701,6 +1850,74 @@ function clearFilters() {{
   document.getElementById('errFilter').value = '';
   applyFilters();
 }}
+
+// Fixed links modal functionality
+const FIXED_LINKS = {fixed_links_json};
+
+function showFixedLinksModal() {{
+  // Create modal if it doesn't exist
+  let modal = document.getElementById('fixedLinksModal');
+  if (!modal) {{
+    modal = document.createElement('div');
+    modal.id = 'fixedLinksModal';
+    modal.className = 'modal-overlay';
+    modal.onclick = function(e) {{
+      if (e.target === modal) closeFixedLinksModal();
+    }};
+
+    // Group fixed links by category
+    const grouped = {{}};
+    FIXED_LINKS.forEach(link => {{
+      if (!grouped[link.category]) grouped[link.category] = [];
+      grouped[link.category].push(link.url);
+    }});
+
+    let listHtml = '';
+    Object.entries(grouped).sort((a,b) => a[0].localeCompare(b[0])).forEach(([cat, urls]) => {{
+      listHtml += `<div class="fixed-link-group">`;
+      listHtml += `<div class="fixed-link-group-title">${{cat}} (${{urls.length}})</div>`;
+      urls.forEach(url => {{
+        listHtml += `<div class="fixed-link-item">
+          <div class="fixed-link-url">${{url}}</div>
+        </div>`;
+      }});
+      listHtml += `</div>`;
+    }});
+
+    modal.innerHTML = `
+      <div class="modal-container">
+        <div class="modal-header">
+          <div class="modal-title">Fixed Links Since June 1, 2026</div>
+          <button class="modal-close" onclick="closeFixedLinksModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <ul class="fixed-links-list">${{listHtml}}</ul>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-count">${{FIXED_LINKS.length}} links fixed and verified</div>
+          <button onclick="closeFixedLinksModal()" style="background:var(--blue-11);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s ease" onmouseover="this.style.background='var(--blue-10)'" onmouseout="this.style.background='var(--blue-11)'">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }}
+
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}}
+
+function closeFixedLinksModal() {{
+  const modal = document.getElementById('fixedLinksModal');
+  if (modal) {{
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }}
+}}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {{
+  if (e.key === 'Escape') closeFixedLinksModal();
+}});
 
 applyFilters();
 </script>
@@ -1878,10 +2095,13 @@ class GitHubPagesUploader:
                 f.write(archive_index)
 
             # Commit and push
+            subprocess.run(['git', '-C', str(repo_dir), 'config', 'user.email', 'broken-link-checker@sonatype.com'], check=True, capture_output=True)
+            subprocess.run(['git', '-C', str(repo_dir), 'config', 'user.name', 'Broken Link Checker'], check=True, capture_output=True)
+            subprocess.run(['git', '-C', str(repo_dir), 'remote', 'set-url', 'origin', repo_url], check=True, capture_output=True)
             subprocess.run(['git', '-C', str(repo_dir), 'add', '.'], check=True, capture_output=True)
             subprocess.run(
                 ['git', '-C', str(repo_dir), 'commit', '-m', f'Update report: {timestamp}'],
-                capture_output=True
+                check=True, capture_output=True
             )
             subprocess.run(['git', '-C', str(repo_dir), 'push'], check=True, capture_output=True)
 
