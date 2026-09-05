@@ -31,7 +31,7 @@ jobs:
           ENABLE_GITHUB_UPLOAD: true
           GITHUB_USERNAME: sonatype-docs
           GITHUB_REPO_NAME: broken-links-reports
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
           ENABLE_SLACK_NOTIFICATIONS: false
           EXCLUDE_PATTERNS: "https://help.sonatype.com/document/,https://help.sonatype.com/cdn-cgi/l/email-protection,http://your-host:8095/crowd,https://sso.your.domain/auth/realms/nexus,https://help.sonatype.com/en/404-page.html,https://repo1.dso.mil/dsop/sonatype/nexus/nexus,https://repo1.dso.mil/dsop/sonatype/nexus-iq-server/nexus-iq-server,https://github.com/samplecount/samplerepo,https://repo.sonatype.com/repository/sonatype-hosted/pki/deb-gpg/GPG-KEY-sonatype-apt-hosted.asc,urn:resource:component:,https://support.sonatype.com/hc/en-us/articles/1500000415082,https://plugins.jenkins.io/nexus-jenkins-plugin/,https://support.sonatype.com/hc/en-us/articles/4408801690515,https://support.sonatype.com/hc/en-us/articles/4409326330003,https://helm.ngc.nvidia.com/nvidia,https://registry-1.docker.io"
         run: python3 enhanced_link_checker.py
