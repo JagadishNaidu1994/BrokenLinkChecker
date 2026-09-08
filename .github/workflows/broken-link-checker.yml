@@ -28,6 +28,15 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
 
+      - name: Clone broken-links-reports repo for historical data
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          # Clone the reports repo to access historical archive data
+          # This ensures lifetime stats and progress tracking work in CI
+          git clone https://x-access-token:${GH_PAT}@github.com/sonatype-docs/broken-links-reports.git .github_pages_repo
+          echo "✓ Cloned broken-links-reports repo with $(ls .github_pages_repo/archive/*.csv 2>/dev/null | wc -l) historical CSV files"
+
       - name: Run broken link checker
         env:
           DOCS_URLS: https://help.sonatype.com/en/sonatype-product-overview.html
